@@ -131,7 +131,7 @@ function ShelfCard({ shelf }: { shelf: ShelfOverview }) {
     <section className="mt-9">
       <div className="flex items-baseline justify-between border-b border-ink pb-2">
         <h2 className="display text-[1.4rem] sm:text-[1.7rem] tracking-tight">
-          Polička
+          Aktuální pití
         </h2>
         {isEmpty ? (
           <span className="stamp stamp-closed">prázdná</span>
@@ -145,9 +145,9 @@ function ShelfCard({ shelf }: { shelf: ShelfOverview }) {
       <div className="paper-card mt-3 p-5 sm:p-6">
         <div className="flex items-baseline justify-between gap-3">
           <div className="min-w-0">
-            <div className="eyebrow truncate">{shelf.product_name}</div>
+            <div className="eyebrow">nfc štítek</div>
             <h3 className="display text-[1.3rem] sm:text-[1.6rem] leading-tight mt-0.5 break-words">
-              {shelf.shelf_name}
+              {shelf.product_name}
             </h3>
           </div>
           {shelf.tag_token && (
@@ -192,7 +192,7 @@ function ShelfCard({ shelf }: { shelf: ShelfOverview }) {
           </>
         ) : (
           <p className="mt-3 text-ink-soft italic text-[0.94rem]">
-            Žádná aktivní dávka. Když někdo přinese novou, zapiš ji.
+            Žádná aktivní dávka. Když někdo přinese nové pití, zapiš ho.
           </p>
         )}
       </div>
@@ -203,14 +203,14 @@ function ShelfCard({ shelf }: { shelf: ShelfOverview }) {
 function NoShelf({ isAdmin }: { isAdmin: boolean }) {
   return (
     <div className="paper-card mt-9 p-5 sm:p-6 text-center">
-      <span className="stamp stamp-closed mx-auto">bez poličky</span>
+      <span className="stamp stamp-closed mx-auto">bez pití</span>
       <div className="display text-[1.4rem] sm:text-[1.7rem] mt-3">
-        Polička ještě není nastavená.
+        Pití ještě není nastavené.
       </div>
       <p className="rubric mt-2 text-[0.98rem]">
         {isAdmin
-          ? "Jako admin ji nastavíš v sekci správa."
-          : "Požádej admina, aby ji nastavil."}
+          ? "Jako admin ho nastavíš ve správě."
+          : "Požádej admina, aby ho nastavil."}
       </p>
       {isAdmin && (
         <Link href="/admin" className="btn btn-ghost mt-4">
@@ -294,7 +294,7 @@ function SignedOutView() {
           Vyrovnej.
         </h1>
         <p className="rubric mt-4 text-[1rem] sm:text-[1.1rem]">
-          Kamarádská účetní knížka pro jednu polici v kanceláři. Na konci měsíce
+          Kamarádská účetní knížka pro jedno sdílené pití v kanceláři. Na konci měsíce
           QR platba pro české banky, žádná matika v hlavě.
         </p>
         <div className="mt-7 flex justify-center">

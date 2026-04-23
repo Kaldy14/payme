@@ -23,7 +23,7 @@ export default async function ShelvesPage() {
           Zapiš <span className="display-italic text-ember">nákup</span>.
         </h1>
         <p className="rubric mt-2 text-[0.96rem]">
-          Co jsi přinesl/a do kanceláře. Pokud aktuální dávka dojde, tahle se
+          Co jsi přinesl/a do kanceláře. Když aktuální dávka dojde, tahle se
           automaticky aktivuje.
         </p>
 
@@ -32,9 +32,9 @@ export default async function ShelvesPage() {
             <BatchForm shelf={shelf} />
           ) : (
             <div className="paper-card p-5 text-center">
-              <span className="stamp stamp-closed mx-auto">bez poličky</span>
+              <span className="stamp stamp-closed mx-auto">bez pití</span>
               <p className="rubric mt-3 text-[0.96rem]">
-                Polička ještě není nastavená.
+                Pití ještě není nastavené.
               </p>
               {member.role === "admin" && (
                 <Link href="/admin" className="btn btn-ghost mt-4">

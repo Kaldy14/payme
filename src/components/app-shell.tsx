@@ -45,7 +45,7 @@ export function Masthead({ member }: { member: SessionMember | null }) {
           <NavLink href="/">doma</NavLink>
           <NavLink href="/shelves">nákup</NavLink>
           <NavLink href="/account">účet</NavLink>
-          {member.role === "admin" && <NavLink href="/admin">kuchyň</NavLink>}
+          {member.role === "admin" && <NavLink href="/admin">správa</NavLink>}
         </nav>
       )}
     </header>

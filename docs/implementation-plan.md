@@ -7,14 +7,14 @@
 - single friend group
 - manual monthly settlement
 - magic link plus optional passkey
-- active batch per shelf
+- active batch for the single configured drink
 - Supabase-hosted Postgres with Next.js
 
 ## Core decisions
 
-- v1 is online-only at the shelf
-- each shelf is permanently bound to one product in v1
-- one active batch per shelf
+- v1 is online-only at tap time
+- the internal shelf record is hidden from the UI and permanently bound to one product in v1
+- one active batch for the configured drink
 - month close is manual and admin-triggered
 - settlement lines are either open or paid
 
@@ -24,7 +24,7 @@
 - `member_payout_account`
 - `invite`
 - `product`
-- `shelf`
+- `shelf` (internal stock slot only; not user-facing)
 - `tag`
 - `batch`
 - `take_event`

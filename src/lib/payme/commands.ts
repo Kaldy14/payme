@@ -539,7 +539,7 @@ export async function activateBatch(input: { shelfId: string; batchId: string })
     );
 
     if (!target) {
-      throw new PaymeError(404, "Tuto dávku na poličce nenajdu.");
+      throw new PaymeError(404, "Tuto dávku u toho pití nenajdu.");
     }
 
     if (target.status === "closed") {
@@ -745,7 +745,7 @@ export async function undoTake(actor: MemberRecord, takeEventId: string) {
     if (laterEvent) {
       throw new PaymeError(
         409,
-        "Vrátit lze jen tvůj poslední odběr z této poličky.",
+        "Vrátit lze jen tvůj poslední odběr z tohoto pití.",
       );
     }
 

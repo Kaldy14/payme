@@ -24,10 +24,9 @@ export function BatchForm({ shelf }: { shelf: ShelfRow }) {
       <input type="hidden" name="shelfId" value={shelf.id} />
 
       <div className="paper-card-flat p-3">
-        <div className="eyebrow">polička</div>
+        <div className="eyebrow">pití</div>
         <div className="text-[1rem] mt-0.5 break-words">
-          {shelf.name}{" "}
-          <span className="rubric text-[0.88rem]">· {shelf.product_name}</span>
+          {shelf.product_name}
         </div>
       </div>
 

@@ -54,31 +54,31 @@ export default async function AdminPage() {
       <section className="mx-auto max-w-xl px-4 py-6 sm:px-6 sm:py-10">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <span className="eyebrow">§ kuchyň</span>
+            <span className="eyebrow">§ správa</span>
             <h1 className="display text-[2rem] sm:text-[2.4rem] leading-tight mt-1">
-              Kuchyň.
+              Nastavení.
             </h1>
             <p className="rubric mt-1 text-[0.96rem]">
-              Polička, štítek, parta. Kostra, na které celé to stojí.
+              Pití, štítek a parta. Jen to nutné.
             </p>
           </div>
           <span className="stamp stamp-active whitespace-nowrap">admin</span>
         </div>
 
-        {/* --- shelf panel --- */}
+        {/* --- drink panel --- */}
         <section className="mt-7">
           <div className="flex items-baseline justify-between border-b border-ink pb-2">
-            <h2 className="display text-[1.4rem] sm:text-[1.6rem]">Polička</h2>
+            <h2 className="display text-[1.4rem] sm:text-[1.6rem]">Pití a štítek</h2>
             <span className="eyebrow text-ink-faint">
-              {shelf ? "nastavena" : "nenastaveno"}
+              {shelf ? "nastaveno" : "nenastaveno"}
             </span>
           </div>
 
           {shelf ? (
             <div className="paper-card mt-3 p-4 sm:p-5">
-              <div className="eyebrow truncate">{shelf.product_name}</div>
+              <div className="eyebrow">aktivní pití</div>
               <div className="display text-[1.3rem] mt-0.5 break-words">
-                {shelf.shelf_name}
+                {shelf.product_name}
               </div>
               <TagMinter shelfId={shelf.shelf_id} currentToken={shelf.tag_token} />
             </div>
