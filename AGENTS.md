@@ -4,7 +4,7 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
-# PayMe Project Notes
+# ChciPlech Project Notes
 
 - Keep the app web-first and iPhone Safari-first for NFC taps until a native client exists.
 - Use `pnpm` as the package manager for installs, scripts, and lockfile updates.

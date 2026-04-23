@@ -1,6 +1,6 @@
-# PayMe
+# ChciPlech
 
-PayMe is a web-first, friends-only office snack ledger for iPhone users.
+ChciPlech is a web-first, friends-only office snack ledger for iPhone users.
 
 The product goal is simple:
 
@@ -50,7 +50,7 @@ Recommended production split:
 
 Vercel no longer provisions its old first-party Postgres for new projects; the current official path is a Marketplace Postgres integration. Source: [Vercel Postgres docs](https://vercel.com/docs/postgres), [Vercel Marketplace storage docs](https://vercel.com/docs/marketplace-storage)
 
-If you install the Supabase Vercel integration, PayMe now accepts the injected `POSTGRES_URL` automatically. You do not need to duplicate it into `DATABASE_URL` unless you want to override it explicitly.
+If you install the Supabase Vercel integration, ChciPlech now accepts the injected `POSTGRES_URL` automatically. You do not need to duplicate it into `DATABASE_URL` unless you want to override it explicitly.
 
 ### Magic-link email with Resend
 
@@ -94,7 +94,7 @@ pnpm install
 pnpm run auth:migrate
 ```
 
-5. Run PayMe domain migrations:
+5. Run ChciPlech domain migrations:
 
 ```bash
 pnpm run db:migrate

@@ -1,10 +1,10 @@
-# PayMe Docs
+# ChciPlech Docs
 
 ## What is in the repo
 
 - `docs/implementation-plan.md`: the implementation plan captured in-repo
 - `docs/next-session-prompt.md`: handoff prompt for the next coding session
-- `db/migrations/001_payme_domain.sql`: PayMe domain schema
+- `db/migrations/001_payme_domain.sql`: ChciPlech domain schema
 - `scripts/run-domain-migrations.mjs`: domain migration runner
 - `src/lib/auth.ts`: Better Auth configuration
 - `src/lib/auth-client.ts`: Better Auth client (magic link + passkey)
@@ -49,7 +49,7 @@
 - Database env resolution is `DATABASE_URL` first, then `POSTGRES_URL`; this lets the Vercel Supabase integration work without duplicating the Postgres URL
 - Supabase/Vercel runtime Postgres uses SSL; non-local connections are normalized to `sslmode=no-verify` and opened with `rejectUnauthorized: false` in `src/lib/db/pool.ts` so Vercel can connect to Supabase without the self-signed-chain failure
 - Better Auth tables are managed by `pnpm run auth:migrate`
-- PayMe tables are managed by `pnpm run db:migrate`
+- ChciPlech tables are managed by `pnpm run db:migrate`
 - Resend email delivery is already implemented in `src/lib/auth.ts`; enable it with `PAYME_MAGIC_LINK_EMAIL_MODE=resend`, `RESEND_API_KEY`, and a valid `PAYME_MAGIC_LINK_FROM`
 - Admin invites now send a real invite email through Resend via `src/lib/emails.ts`; pending invites can be bulk-sent from `/admin` without retyping addresses
 - For deployment, runtime secrets belong in Vercel Project Environment Variables, not GitHub Secrets

@@ -45,7 +45,7 @@ export async function requireMember(request: Request) {
   const member = await findMemberByAuthUserId(session.user.id);
 
   if (!member) {
-    throw new PaymeError(403, "K tomuto účtu není připojen člen PayMe.");
+    throw new PaymeError(403, "K tomuto účtu není připojen člen ChciPlech.");
   }
 
   return {

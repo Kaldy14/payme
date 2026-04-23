@@ -12,7 +12,7 @@ export function Masthead({ member }: { member: SessionMember | null }) {
           className="group flex items-baseline gap-3"
         >
           <span className="display text-[2.1rem] leading-none tracking-tight">
-            Pay<span className="display-italic text-ember">Me</span>
+            Chci<span className="display-italic text-ember">Plech</span>
             <span className="text-ink">.</span>
           </span>
           <span className="eyebrow hidden sm:inline text-ink-faint">
@@ -66,7 +66,7 @@ export function Footer() {
   return (
     <footer className="mt-14 border-t border-rule bg-paper">
       <div className="mx-auto flex max-w-5xl flex-col gap-2 px-5 py-6 text-[0.72rem] uppercase tracking-[0.22em] text-ink-faint sm:flex-row sm:items-baseline sm:justify-between sm:px-8 tabular">
-        <span>PayMe · pro parťáky z kanceláře</span>
+        <span>ChciPlech · pro parťáky z kanceláře</span>
         <span>CZ</span>
       </div>
     </footer>

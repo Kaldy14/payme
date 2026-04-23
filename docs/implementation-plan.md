@@ -1,4 +1,4 @@
-# PayMe Lightweight Verified Plan
+# ChciPlech Lightweight Verified Plan
 
 ## Summary
 

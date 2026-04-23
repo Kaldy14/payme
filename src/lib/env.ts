@@ -6,12 +6,12 @@ const envSchema = z.object({
   BETTER_AUTH_URL: z.url(),
   PAYME_BASE_URL: z.url(),
   PAYME_OFFICE_TIMEZONE: z.string().default("Europe/Prague"),
-  PAYME_APP_NAME: z.string().default("PayMe"),
+  PAYME_APP_NAME: z.string().default("ChciPlech"),
   PAYME_MAGIC_LINK_EMAIL_MODE: z.enum(["console", "resend"]).default("console"),
-  PAYME_MAGIC_LINK_FROM: z.string().default("PayMe <no-reply@example.com>"),
+  PAYME_MAGIC_LINK_FROM: z.string().default("ChciPlech <no-reply@example.com>"),
   RESEND_API_KEY: z.string().optional(),
   PASSKEY_RP_ID: z.string().default("localhost"),
-  PASSKEY_RP_NAME: z.string().default("PayMe"),
+  PASSKEY_RP_NAME: z.string().default("ChciPlech"),
 });
 
 export const env = envSchema.parse({

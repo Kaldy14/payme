@@ -16,10 +16,10 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PayMe — kancelářská účetní knížka",
+  title: "ChciPlech — kancelářská účetní knížka",
   description:
     "Kamarádská účetní knížka pro jednu polici v kanceláři. Ťukni, vezmi, vyrovnej se na konci měsíce.",
-  applicationName: "PayMe",
+  applicationName: "ChciPlech",
 };
 
 export const viewport: Viewport = {

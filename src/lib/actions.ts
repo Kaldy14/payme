@@ -27,7 +27,7 @@ async function requireMemberFromCookies() {
   }
   const member = await findMemberByAuthUserId(session.user.id);
   if (!member) {
-    throw new PaymeError(403, "Tenhle účet není propojený s členem PayMe.");
+    throw new PaymeError(403, "Tenhle účet není propojený s členem ChciPlech.");
   }
   return member;
 }

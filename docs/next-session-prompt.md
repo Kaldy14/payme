@@ -1,10 +1,10 @@
 # Next Session Prompt
 
-Use this prompt at the start of the next PayMe session:
+Use this prompt at the start of the next ChciPlech session:
 
 ---
 
-You are continuing work on `PayMe`, a lightweight friends-only office snack ledger at `/Users/kaldy/Data/Repos/payme`.
+You are continuing work on `ChciPlech`, a lightweight friends-only office snack ledger at `/Users/kaldy/Data/Repos/payme`.
 
 ## Main purpose
 

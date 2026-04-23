@@ -126,7 +126,7 @@ export async function assertAuthEmailAllowed(email: string) {
   }
 
   if (!(await invitedOrExistingMember(email, pool))) {
-    throw new PaymeError(403, "Tento e-mail není pozván do PayMe.");
+    throw new PaymeError(403, "Tento e-mail není pozván do ChciPlech.");
   }
 }
 
