@@ -24,6 +24,11 @@ type CreateShelfInput = {
   description?: string;
 };
 
+type ReplaceCurrentDrinkInput = {
+  name: string;
+  unitLabel?: string;
+};
+
 type PayoutAccountInput = {
   accountPrefix?: string;
   accountNumber: string;
@@ -412,6 +417,115 @@ export async function createTag(input: { shelfId: string }) {
     token,
     url: `${env.PAYME_BASE_URL.replace(/\/$/, "")}/t/${token}`,
   };
+}
+
+export async function replaceCurrentDrink(
+  _actor: MemberRecord,
+  input: ReplaceCurrentDrinkInput,
+) {
+  const drinkName = input.name.trim();
+  const unitLabel = input.unitLabel?.trim() || null;
+
+  if (!drinkName) {
+    throw new PaymeError(400, "Zadej název pití.");
+  }
+
+  return withTransaction(async (client) => {
+    const currentShelf = firstRow(
+      await client.query<{ id: string }>(
+        `
+          select id
+          from app_shelf
+          where is_active = true
+          order by created_at desc
+          limit 1
+          for update
+        `,
+      ),
+    );
+
+    if (!currentShelf) {
+      throw new PaymeError(404, "Teď tu ještě není co měnit.");
+    }
+
+    const openBatch = firstRow(
+      await client.query<{ id: string }>(
+        `
+          select id
+          from app_batch
+          where shelf_id = $1
+            and status in ('active', 'queued')
+          limit 1
+          for update
+        `,
+        [currentShelf.id],
+      ),
+    );
+
+    if (openBatch) {
+      throw new PaymeError(
+        409,
+        "Nejdřív musí zmizet aktivní nebo čekající dávka aktuálního pití.",
+      );
+    }
+
+    const productId = createId("product");
+    const shelfId = createId("shelf");
+    const tagId = createId("tag");
+    const token = createTagToken();
+
+    await client.query(
+      `
+        insert into app_product (id, name, unit_label)
+        values ($1, $2, $3)
+      `,
+      [productId, drinkName, unitLabel],
+    );
+
+    await client.query(
+      `
+        update app_tag
+        set is_active = false,
+            archived_at = now()
+        where shelf_id = $1
+          and is_active = true
+      `,
+      [currentShelf.id],
+    );
+
+    await client.query(
+      `
+        update app_shelf
+        set is_active = false,
+            updated_at = now()
+        where id = $1
+      `,
+      [currentShelf.id],
+    );
+
+    await client.query(
+      `
+        insert into app_shelf (id, product_id, name)
+        values ($1, $2, $3)
+      `,
+      [shelfId, productId, drinkName],
+    );
+
+    await client.query(
+      `
+        insert into app_tag (id, shelf_id, token)
+        values ($1, $2, $3)
+      `,
+      [tagId, shelfId, token],
+    );
+
+    return {
+      productId,
+      shelfId,
+      token,
+      url: `${env.PAYME_BASE_URL.replace(/\/$/, "")}/t/${token}`,
+    };
+  });
 }
 
 function resolveUnitPriceMinor(input: CreateBatchInput) {

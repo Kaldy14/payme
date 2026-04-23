@@ -15,6 +15,7 @@ import {
   createShelf,
   createTag,
   markSettlementPaid,
+  replaceCurrentDrink,
   upsertPayoutAccount,
 } from "@/lib/payme/commands";
 import { PaymeError } from "@/lib/payme/errors";
@@ -92,6 +93,33 @@ export async function mintTagAction(
     const result = await createTag({ shelfId });
     revalidatePath("/admin");
     return { ok: "Nový štítek vytvořen.", url: result.url };
+  } catch (err) {
+    return toState(err);
+  }
+}
+
+// --------------- replace current drink ---------------
+
+export async function replaceDrinkAction(
+  _prev: ActionState & { url?: string },
+  formData: FormData,
+): Promise<ActionState & { url?: string }> {
+  try {
+    const member = await requireMemberFromCookies();
+    requireAdminRole(member.role);
+    const productName = String(formData.get("productName") ?? "").trim();
+    const unitLabel = String(formData.get("unitLabel") ?? "").trim();
+    if (!productName) return { error: "Zadej název pití." };
+
+    const result = await replaceCurrentDrink(member, {
+      name: productName,
+      unitLabel: unitLabel || undefined,
+    });
+
+    revalidatePath("/admin");
+    revalidatePath("/");
+    revalidatePath("/shelves");
+    return { ok: "Nové pití je připravené.", url: result.url };
   } catch (err) {
     return toState(err);
   }

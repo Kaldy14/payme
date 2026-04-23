@@ -12,6 +12,7 @@ import {
 import {
   InviteForm,
   PendingInvitesForm,
+  ReplaceDrinkForm,
   SetupShelfForm,
   TagMinter,
 } from "./admin-forms";
@@ -80,7 +81,10 @@ export default async function AdminPage() {
               <div className="display text-[1.3rem] mt-0.5 break-words">
                 {shelf.product_name}
               </div>
-              <TagMinter shelfId={shelf.shelf_id} currentToken={shelf.tag_token} />
+              <div className="mt-4 flex flex-col gap-3">
+                <TagMinter shelfId={shelf.shelf_id} currentToken={shelf.tag_token} />
+                <ReplaceDrinkForm />
+              </div>
             </div>
           ) : (
             <SetupShelfForm />

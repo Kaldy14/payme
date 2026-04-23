@@ -42,7 +42,7 @@ Landed in the UI pass (iteration 2):
 - `/t/[tagToken]` — NFC take flow: +1 primary button, +2/+3, live two-minute undo, vlastní-dávka guard, rozebráno/neznámé-štítek states
 - `/shelves` — single "zapiš nákup" form for the configured drink
 - `/account` — český účet editor + passkey enrollment
-- `/admin` — two panels: Pití a štítek (bootstrap wizard that creates product + hidden stock slot + tag in one submit if missing, otherwise drink name + NFC URL + re-mint) and Lidé (members + invites)
+- `/admin` — two panels: Pití a štítek (bootstrap wizard that creates product + hidden stock slot + tag in one submit if missing, otherwise drink name + NFC URL + re-mint + replace-drink flow) and Lidé (members + invites)
 - `/report/[yyyy-mm]` — Dlužíš / Dluží ti columns with Czech SPD QR images, mark-paid, admin close-month with confirm
 - server actions in `src/lib/actions.ts` wrap `src/lib/payme/commands.ts` for all non-NFC mutations and `setupShelfAction` bootstraps a fresh group
 - UI data helpers in `src/lib/payme/ui-queries.ts`

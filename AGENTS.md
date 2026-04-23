@@ -25,3 +25,4 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - UI is mobile-first (iPhone Safari). Keep headings and cards sized for ~390px viewports and stack multi-column grids on base widths, opening up only at `sm:` and above.
 - UI is Czech-only. All member-facing copy (including `PaymeError.message` from `src/lib/payme/commands.ts` and `src/lib/payme/authz.ts`) stays in Czech, using informal singular ("ty") — it's a friends-only group. Keep error strings short and human.
 - V1 assumes a single drink/tag setup. Keep the internal `app_shelf` slot if needed for stock logic, but do not expose location/place fields or multi-shelf UI. The admin workshop should only ask for the drink name and mint/re-mint the NFC tag.
+- Admin must also support replacing the current drink with a fresh one. Do not rename the current product in place, because old takes/history must keep their original drink names.
