@@ -6,11 +6,24 @@ const globalForPg = globalThis as typeof globalThis & {
   __paymePool?: Pool;
 };
 
+function getPoolOptions() {
+  const url = new URL(env.DATABASE_URL);
+  const isLocalHost = ["127.0.0.1", "localhost"].includes(url.hostname);
+  const connectionUrl = new URL(env.DATABASE_URL);
+
+  if (!isLocalHost) {
+    connectionUrl.searchParams.set("sslmode", "no-verify");
+  }
+
+  return {
+    connectionString: connectionUrl.toString(),
+    ssl: isLocalHost ? undefined : { rejectUnauthorized: false },
+  };
+}
+
 export const pool =
   globalForPg.__paymePool ??
-  new Pool({
-    connectionString: env.DATABASE_URL,
-  });
+  new Pool(getPoolOptions());
 
 if (process.env.NODE_ENV !== "production") {
   globalForPg.__paymePool = pool;
