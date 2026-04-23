@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PayMe
 
-## Getting Started
+PayMe is a web-first, friends-only office snack ledger for iPhone users.
 
-First, run the development server:
+The product goal is simple:
+
+- buyers add packs of drinks or snacks they brought in
+- shelf NFC tags open a product URL in iPhone Safari
+- the app records who took what from the active batch
+- the month closes manually
+- each person gets a clear Czech QR payment summary for who they owe
+
+## Stack
+
+- `Next.js 16` App Router
+- `better-auth` for magic-link auth with optional passkeys
+- `PostgreSQL`
+- server-side transactional command handlers for stock and ledger changes
+
+## Current implementation status
+
+The repository currently includes:
+
+- environment validation
+- auth wiring with magic links and passkeys
+- SQL domain migrations
+- transactional backend commands and API routes
+- mobile-first UI for sign-in, take flow, admin setup, shelves, account, and monthly reports
+- Czech QR Platba payload and QR rendering
+- project plan and architecture docs
+
+The app has been smoke-tested locally against PostgreSQL for:
+
+- admin bootstrap
+- member invite flow
+- payout-account save
+- batch creation
+- NFC take + undo
+- month close
+- report QR rendering
+- mark-paid flow
+
+## Deployment
+
+Recommended production split:
+
+- frontend: `Vercel`
+- database: hosted Postgres such as `Supabase` or `Neon`
+
+Vercel no longer provisions its old first-party Postgres for new projects; the current official path is a Marketplace Postgres integration. Source: [Vercel Postgres docs](https://vercel.com/docs/postgres), [Vercel Marketplace storage docs](https://vercel.com/docs/marketplace-storage)
+
+## Local setup
+
+1. Copy `.env.example` to `.env.local`
+2. Fill in `DATABASE_URL`, `BETTER_AUTH_SECRET`, and `BETTER_AUTH_URL`
+3. Install dependencies:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+4. Run auth migrations:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm run auth:migrate
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+5. Run PayMe domain migrations:
 
-## Learn More
+```bash
+pnpm run db:migrate
+```
 
-To learn more about Next.js, take a look at the following resources:
+6. Start the app:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+pnpm run dev
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The app listens on [http://localhost:3333](http://localhost:3333) by default.
 
-## Deploy on Vercel
+## Docs
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [docs/README.md](docs/README.md)
+- [docs/implementation-plan.md](docs/implementation-plan.md)

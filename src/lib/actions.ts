@@ -1,0 +1,215 @@
+"use server";
+
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+
+import { auth } from "@/lib/auth";
+import { findMemberByAuthUserId } from "@/lib/payme/authz";
+import {
+  closeMonth,
+  createBatch,
+  createInvite,
+  createProduct,
+  createShelf,
+  createTag,
+  markSettlementPaid,
+  upsertPayoutAccount,
+} from "@/lib/payme/commands";
+import { PaymeError } from "@/lib/payme/errors";
+
+async function requireMemberFromCookies() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) {
+    throw new PaymeError(401, "Nejdřív se přihlas.");
+  }
+  const member = await findMemberByAuthUserId(session.user.id);
+  if (!member) {
+    throw new PaymeError(403, "Tenhle účet není propojený s členem PayMe.");
+  }
+  return member;
+}
+
+function requireAdminRole(role: "admin" | "member") {
+  if (role !== "admin") {
+    throw new PaymeError(403, "Jen pro adminy.");
+  }
+}
+
+type ActionState = { error?: string; ok?: string };
+
+function toState(err: unknown): ActionState {
+  if (err instanceof PaymeError) return { error: err.message };
+  if (err instanceof Error) return { error: err.message };
+  return { error: "Něco se pokazilo." };
+}
+
+// --------------- first-time setup (product + shelf + tag) ---------------
+
+export async function setupShelfAction(
+  _prev: ActionState & { url?: string },
+  formData: FormData,
+): Promise<ActionState & { url?: string }> {
+  try {
+    const member = await requireMemberFromCookies();
+    requireAdminRole(member.role);
+    const productName = String(formData.get("productName") ?? "").trim();
+    const shelfName = String(formData.get("shelfName") ?? "").trim();
+    const unitLabel = String(formData.get("unitLabel") ?? "").trim();
+    if (!productName) return { error: "Zadej název produktu." };
+    if (!shelfName) return { error: "Zadej název poličky." };
+
+    const product = await createProduct({
+      name: productName,
+      unitLabel: unitLabel || undefined,
+    });
+    const shelf = await createShelf({
+      productId: product.id,
+      name: shelfName,
+    });
+    const tag = await createTag({ shelfId: shelf.id });
+
+    revalidatePath("/admin");
+    revalidatePath("/");
+    revalidatePath("/shelves");
+    return { ok: "Polička nastavena.", url: tag.url };
+  } catch (err) {
+    return toState(err);
+  }
+}
+
+// --------------- tag (re-mint) ---------------
+
+export async function mintTagAction(
+  _prev: ActionState & { url?: string },
+  formData: FormData,
+): Promise<ActionState & { url?: string }> {
+  try {
+    const member = await requireMemberFromCookies();
+    requireAdminRole(member.role);
+    const shelfId = String(formData.get("shelfId") ?? "").trim();
+    if (!shelfId) return { error: "Chybí polička." };
+    const result = await createTag({ shelfId });
+    revalidatePath("/admin");
+    return { ok: "Nový štítek vytvořen.", url: result.url };
+  } catch (err) {
+    return toState(err);
+  }
+}
+
+// --------------- invites ---------------
+
+export async function createInviteAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  try {
+    const member = await requireMemberFromCookies();
+    requireAdminRole(member.role);
+    const email = String(formData.get("email") ?? "").trim();
+    const displayName = String(formData.get("displayName") ?? "").trim();
+    const role = (String(formData.get("role") ?? "member") === "admin"
+      ? "admin"
+      : "member") as "admin" | "member";
+    if (!email || !displayName) {
+      return { error: "E-mail a jméno jsou povinné." };
+    }
+    await createInvite(member, { email, displayName, role });
+    revalidatePath("/admin");
+    return { ok: `${displayName} pozván(a).` };
+  } catch (err) {
+    return toState(err);
+  }
+}
+
+// --------------- payout account ---------------
+
+export async function upsertPayoutAccountAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  try {
+    const member = await requireMemberFromCookies();
+    const accountPrefix = String(formData.get("accountPrefix") ?? "").trim();
+    const accountNumber = String(formData.get("accountNumber") ?? "").trim();
+    const bankCode = String(formData.get("bankCode") ?? "").trim();
+    const accountName = String(formData.get("accountName") ?? "").trim();
+    const iban = String(formData.get("iban") ?? "").trim();
+    if (!accountNumber) return { error: "Zadej číslo účtu." };
+    if (!/^\d{4}$/.test(bankCode)) {
+      return { error: "Kód banky musí mít 4 číslice." };
+    }
+    await upsertPayoutAccount(member.id, {
+      accountPrefix: accountPrefix || undefined,
+      accountNumber,
+      bankCode,
+      accountName: accountName || undefined,
+      iban: iban || undefined,
+    });
+    revalidatePath("/account");
+    return { ok: "Platební údaje uloženy." };
+  } catch (err) {
+    return toState(err);
+  }
+}
+
+// --------------- batches ---------------
+
+export async function createBatchAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  try {
+    const member = await requireMemberFromCookies();
+    const shelfId = String(formData.get("shelfId") ?? "").trim();
+    const quantityTotal = Number(formData.get("quantityTotal"));
+    const purchaseTotalCzk = Number(formData.get("purchaseTotalCzk"));
+    const receiptNote = String(formData.get("receiptNote") ?? "").trim();
+    if (!shelfId) return { error: "Chybí polička." };
+    if (!Number.isInteger(quantityTotal) || quantityTotal < 1) {
+      return { error: "Počet musí být kladné celé číslo." };
+    }
+    if (!(purchaseTotalCzk > 0)) {
+      return { error: "Celková cena musí být větší než 0 Kč." };
+    }
+    const purchaseTotalMinor = Math.round(purchaseTotalCzk * 100);
+    await createBatch(member, {
+      shelfId,
+      quantityTotal,
+      purchaseTotalMinor,
+      receiptNote: receiptNote || undefined,
+    });
+    revalidatePath("/shelves");
+    revalidatePath("/");
+    return { ok: "Dávka zapsána." };
+  } catch (err) {
+    return toState(err);
+  }
+}
+
+// --------------- month close / mark paid ---------------
+
+export async function closeMonthAction(monthKey: string) {
+  const member = await requireMemberFromCookies();
+  requireAdminRole(member.role);
+  const result = await closeMonth(member, monthKey);
+  revalidatePath(`/report/${monthKey}`);
+  return result;
+}
+
+export async function markSettlementPaidAction(
+  settlementId: string,
+  monthKey: string,
+) {
+  const member = await requireMemberFromCookies();
+  await markSettlementPaid(member, settlementId);
+  revalidatePath(`/report/${monthKey}`);
+  return { ok: true };
+}
+
+// --------------- sign out ---------------
+
+export async function signOutAction() {
+  await auth.api.signOut({ headers: await headers() });
+  redirect("/sign-in");
+}

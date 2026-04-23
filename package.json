@@ -1,21 +1,35 @@
 {
-  "name": "payme-scaffold",
+  "name": "payme",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.30.3",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3333",
     "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "start": "next start -p 3333",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "check": "pnpm run lint && pnpm run typecheck",
+    "db:migrate": "node scripts/run-domain-migrations.mjs",
+    "auth:migrate": "better-auth migrate --config src/lib/auth.ts -y"
   },
   "dependencies": {
+    "@better-auth/passkey": "^1.6.7",
+    "better-auth": "^1.6.7",
+    "kysely": "^0.28.16",
     "next": "16.2.4",
+    "pg": "^8.20.0",
+    "qrcode": "^1.5.4",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@better-auth/cli": "^1.4.21",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.20.0",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
