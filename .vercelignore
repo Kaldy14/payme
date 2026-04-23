@@ -1,0 +1,5 @@
+.env*
+.omc
+.omx
+node_modules
+.next

@@ -46,6 +46,7 @@
 
 - Use `pnpm` for dependency and script management in this repo
 - Local app default port is `3333`; keep `BETTER_AUTH_URL` and `PAYME_BASE_URL` aligned with it unless you intentionally override the port
+- Keep `.env*` out of Vercel CLI deploy uploads via `.vercelignore`; otherwise a local `.env.local` can override production envs during `vercel --prod`
 - Database env resolution is `DATABASE_URL` first, then `POSTGRES_URL`; this lets the Vercel Supabase integration work without duplicating the Postgres URL
 - Supabase/Vercel runtime Postgres uses SSL; non-local connections are normalized to `sslmode=no-verify` and opened with `rejectUnauthorized: false` in `src/lib/db/pool.ts` so Vercel can connect to Supabase without the self-signed-chain failure
 - Better Auth tables are managed by `pnpm run auth:migrate`

@@ -10,6 +10,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Use `pnpm` as the package manager for installs, scripts, and lockfile updates.
 - Default local web port is `3333`; keep new local run instructions and auth/base URL examples aligned with that port.
 - Runtime/deployment secrets (database, auth, Resend) belong in Vercel project env vars; GitHub Secrets are only for CI workflows.
+- Never let local `.env*` files ride along in Vercel CLI deployments; keep `.vercelignore` blocking them so local dev values do not override production envs.
 - Treat `POSTGRES_URL` from Vercel/Supabase as a valid runtime DB source; do not require a duplicated `DATABASE_URL` unless an explicit override is needed.
 - Keep the non-local Postgres SSL override in `src/lib/db/pool.ts` when using Supabase/Vercel (`sslmode=no-verify` plus `rejectUnauthorized: false` for remote hosts) unless the deployment is moved to a CA chain that verifies cleanly.
 - Treat money and stock changes as transactional server-side commands. Do not move write logic into the browser.
