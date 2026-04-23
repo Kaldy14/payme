@@ -144,19 +144,6 @@ export function ReplaceDrinkForm() {
     replaceDrinkAction,
     {},
   );
-  const [confirm, setConfirm] = useState(false);
-
-  if (!confirm) {
-    return (
-      <button
-        type="button"
-        onClick={() => setConfirm(true)}
-        className="btn btn-ghost btn-sm"
-      >
-        přepnout na jiné pití
-      </button>
-    );
-  }
 
   return (
     <form action={action} className="paper-card-flat p-3 flex flex-col gap-3">
@@ -190,15 +177,7 @@ export function ReplaceDrinkForm() {
       </div>
       <div className="flex gap-2">
         <button type="submit" disabled={pending} className="btn btn-sm btn-ember">
-          {pending ? "přepínám…" : "uložit nové pití"}
-        </button>
-        <button
-          type="button"
-          onClick={() => setConfirm(false)}
-          disabled={pending}
-          className="btn btn-ghost btn-sm"
-        >
-          zrušit
+          {pending ? "vytvářím…" : "vytvořit nové pití"}
         </button>
       </div>
       <Status state={state} />

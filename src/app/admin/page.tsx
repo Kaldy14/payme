@@ -83,7 +83,10 @@ export default async function AdminPage() {
               </div>
               <div className="mt-4 flex flex-col gap-3">
                 <TagMinter shelfId={shelf.shelf_id} currentToken={shelf.tag_token} />
-                <ReplaceDrinkForm />
+                <div className="border-t border-dashed border-rule pt-3">
+                  <div className="eyebrow mb-2">změna pití</div>
+                  <ReplaceDrinkForm />
+                </div>
               </div>
             </div>
           ) : (

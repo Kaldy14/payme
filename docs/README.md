@@ -39,7 +39,7 @@
 - `/t/[tagToken]` – NFC take screen. Big +1 button, +2/+3, live two-minute undo timer, vlastní-dávka guard, rozebráno / neznámé-štítek states.
 - `/shelves` – single batch form ("zapiš nákup") for the one configured drink.
 - `/account` – payout account editor (prefix/účet/banka/IBAN) + passkey enrollment.
-- `/admin` – admin-only. Two panels: Pití a štítek (setup wizard if nothing exists yet, otherwise drink name + NFC URL + re-mint button + "přepnout na jiné pití") and Lidé (members + invites).
+- `/admin` – admin-only. Two panels: Pití a štítek (setup wizard if nothing exists yet, otherwise drink name + NFC URL + re-mint button + visible "nové pití" form) and Lidé (members + invites).
 - `/report/[yyyy-mm]` – monthly folio. Dlužíš / Dluží ti columns with Czech SPD QR images for unpaid debts; debtor-side mark-paid; admin close button for open months.
 
 ## Operational notes
