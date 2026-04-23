@@ -24,5 +24,5 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - When touching settlement or report UI, re-check the real paid/open states in `/report/[yyyy-mm]`; summary cards must not imply an open debt once all lines are paid.
 - UI is mobile-first (iPhone Safari). Keep headings and cards sized for ~390px viewports and stack multi-column grids on base widths, opening up only at `sm:` and above.
 - UI is Czech-only. All member-facing copy (including `PaymeError.message` from `src/lib/payme/commands.ts` and `src/lib/payme/authz.ts`) stays in Czech, using informal singular ("ty") — it's a friends-only group. Keep error strings short and human.
-- V1 assumes a single drink/tag setup. Keep the internal `app_shelf` slot if needed for stock logic, but do not expose location/place fields or multi-shelf UI. The admin workshop should only ask for the drink name and mint/re-mint the NFC tag.
-- Admin must also support replacing the current drink with a fresh one, and that path should stay visibly accessible in the admin UI. Do not rename the current product in place, because old takes/history must keep their original drink names.
+- Use the existing multi-drink model. Keep location/place fields hidden, but expose a list of drinks/tags in admin, dashboard, and purchase flows. Do not collapse the UI back to a single global drink.
+- Do not rename historical products in place. New drinks should be added as new records so old takes/history keep their original drink names.

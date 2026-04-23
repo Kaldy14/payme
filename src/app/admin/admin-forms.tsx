@@ -5,7 +5,6 @@ import { useActionState, useState } from "react";
 import {
   createInviteAction,
   mintTagAction,
-  replaceDrinkAction,
   sendPendingInvitesAction,
   setupShelfAction,
 } from "@/lib/actions";
@@ -31,9 +30,9 @@ function Status({ state }: { state: State }) {
   );
 }
 
-// --- setup wizard for the one drink ---
+// --- add drink + tag ---
 
-export function SetupShelfForm() {
+export function AddDrinkForm() {
   const [state, action, pending] = useActionState<TagState, FormData>(
     setupShelfAction,
     {},
@@ -41,7 +40,7 @@ export function SetupShelfForm() {
 
   return (
     <form action={action} className="paper-card mt-3 p-4 sm:p-5 flex flex-col gap-3">
-      <div className="eyebrow">nová parta · první nastavení</div>
+      <div className="eyebrow">nové pití</div>
       <div className="field-row">
         <label className="label" htmlFor="productName">
           pití
@@ -66,7 +65,7 @@ export function SetupShelfForm() {
         />
       </div>
       <button type="submit" disabled={pending} className="btn btn-ember">
-        {pending ? "nastavuji…" : "vytvořit pití a štítek"}
+        {pending ? "vytvářím…" : "vytvořit pití a štítek"}
       </button>
       <Status state={state} />
       {state.url && (
@@ -136,58 +135,6 @@ export function TagMinter({
         </form>
       )}
     </div>
-  );
-}
-
-export function ReplaceDrinkForm() {
-  const [state, action, pending] = useActionState<TagState, FormData>(
-    replaceDrinkAction,
-    {},
-  );
-
-  return (
-    <form action={action} className="paper-card-flat p-3 flex flex-col gap-3">
-      <div className="eyebrow text-ember-deep">nové pití</div>
-      <p className="text-[0.85rem] text-ink-soft">
-        Vytvoří se nové pití a nový NFC štítek. Funguje to jen když u aktuálního
-        pití není aktivní ani čekající dávka.
-      </p>
-      <div className="field-row">
-        <label className="label" htmlFor="replace-productName">
-          pití
-        </label>
-        <input
-          id="replace-productName"
-          name="productName"
-          required
-          className="input"
-          placeholder="Kofola 0.5l"
-        />
-      </div>
-      <div className="field-row">
-        <label className="label" htmlFor="replace-unitLabel">
-          jednotka
-        </label>
-        <input
-          id="replace-unitLabel"
-          name="unitLabel"
-          className="input"
-          placeholder="plech"
-        />
-      </div>
-      <div className="flex gap-2">
-        <button type="submit" disabled={pending} className="btn btn-sm btn-ember">
-          {pending ? "vytvářím…" : "vytvořit nové pití"}
-        </button>
-      </div>
-      <Status state={state} />
-      {state.url && (
-        <div className="paper-card-flat p-3 break-all">
-          <span className="eyebrow">nová NFC URL</span>
-          <div className="tabular text-[0.8rem] mt-1">{state.url}</div>
-        </div>
-      )}
-    </form>
   );
 }
 

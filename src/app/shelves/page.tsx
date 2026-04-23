@@ -13,11 +13,10 @@ export default async function ShelvesPage() {
   if (!member) redirect("/sign-in?next=/shelves");
 
   const shelves = await listShelves();
-  const shelf = shelves[0] ?? null;
 
   return (
     <PageFrame member={member}>
-      <section className="mx-auto max-w-md px-4 py-6 sm:px-6 sm:py-10">
+      <section className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-10">
         <span className="eyebrow">§ nová dávka</span>
         <h1 className="display text-[2.2rem] sm:text-[2.8rem] leading-tight mt-2">
           Zapiš <span className="display-italic text-ember">nákup</span>.
@@ -28,8 +27,12 @@ export default async function ShelvesPage() {
         </p>
 
         <div className="mt-6">
-          {shelf ? (
-            <BatchForm shelf={shelf} />
+          {shelves.length > 0 ? (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {shelves.map((shelf) => (
+                <BatchForm key={shelf.id} shelf={shelf} />
+              ))}
+            </div>
           ) : (
             <div className="paper-card p-5 text-center">
               <span className="stamp stamp-closed mx-auto">bez pití</span>

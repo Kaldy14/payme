@@ -10,10 +10,9 @@ import {
   listShelfOverviews,
 } from "@/lib/payme/ui-queries";
 import {
+  AddDrinkForm,
   InviteForm,
   PendingInvitesForm,
-  ReplaceDrinkForm,
-  SetupShelfForm,
   TagMinter,
 } from "./admin-forms";
 
@@ -47,7 +46,6 @@ export default async function AdminPage() {
     listMembers(),
   ]);
 
-  const shelf = shelves[0] ?? null;
   const pendingInviteCount = invites.filter((invite) => !invite.accepted_at).length;
 
   return (
@@ -69,29 +67,45 @@ export default async function AdminPage() {
         {/* --- drink panel --- */}
         <section className="mt-7">
           <div className="flex items-baseline justify-between border-b border-ink pb-2">
-            <h2 className="display text-[1.4rem] sm:text-[1.6rem]">Pití a štítek</h2>
+            <h2 className="display text-[1.4rem] sm:text-[1.6rem]">Pití a štítky</h2>
             <span className="eyebrow text-ink-faint">
-              {shelf ? "nastaveno" : "nenastaveno"}
+              {shelves.length > 0 ? `${shelves.length}×` : "nenastaveno"}
             </span>
           </div>
 
-          {shelf ? (
-            <div className="paper-card mt-3 p-4 sm:p-5">
-              <div className="eyebrow">aktivní pití</div>
-              <div className="display text-[1.3rem] mt-0.5 break-words">
-                {shelf.product_name}
-              </div>
-              <div className="mt-4 flex flex-col gap-3">
-                <TagMinter shelfId={shelf.shelf_id} currentToken={shelf.tag_token} />
-                <div className="border-t border-dashed border-rule pt-3">
-                  <div className="eyebrow mb-2">změna pití</div>
-                  <ReplaceDrinkForm />
+          <div className="mt-3 flex flex-col gap-4">
+            {shelves.length > 0 ? (
+              shelves.map((shelf) => (
+                <div key={shelf.shelf_id} className="paper-card p-4 sm:p-5">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="eyebrow">pití</div>
+                      <div className="display text-[1.3rem] mt-0.5 break-words">
+                        {shelf.product_name}
+                      </div>
+                    </div>
+                    {shelf.active_batch_id ? (
+                      <span className="stamp stamp-paid shrink-0">aktivní</span>
+                    ) : (
+                      <span className="stamp stamp-closed shrink-0">bez dávky</span>
+                    )}
+                  </div>
+                  <div className="mt-4">
+                    <TagMinter shelfId={shelf.shelf_id} currentToken={shelf.tag_token} />
+                  </div>
                 </div>
+              ))
+            ) : (
+              <div className="paper-card p-5 text-center">
+                <span className="stamp stamp-closed mx-auto">bez pití</span>
+                <p className="rubric mt-3 text-[0.96rem]">
+                  Zatím tu není žádné pití ani štítek.
+                </p>
               </div>
-            </div>
-          ) : (
-            <SetupShelfForm />
-          )}
+            )}
+
+            <AddDrinkForm />
+          </div>
         </section>
 
         {/* --- members --- */}

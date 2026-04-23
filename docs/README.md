@@ -21,9 +21,9 @@
 ## Product rules captured in code
 
 - one office group only
-- **one drink/tag** in v1 — UI exposes one shared drink definition and does not ask for a place/location
-- the existing internal shelf record is just a hidden stock slot
-- one active batch for that drink at a time
+- drinks are modeled as a list; each drink has its own hidden stock slot and NFC tag
+- the existing internal shelf record stays hidden from users and acts only as a stock slot
+- one active batch per drink at a time
 - online-only NFC take flow
 - append-only take events
 - undo creates compensating events instead of deleting history
@@ -34,12 +34,12 @@
 
 - Design direction: receipt / ledger paper. Cream background, Fraunces display serif, JetBrains Mono for tabular numbers, hot ember accent, moss green for paid, stamp red for due. Tokens live in `src/app/globals.css`.
 - UI is **mobile-first** (iPhone Safari primary target) and **Czech-only** (informal singular).
-- `/` – signed-in ledger: balance cards (dlužíš / dluží ti), current drink card, tvé odběry, nav links. Signed out shows a compact hero with one CTA.
+- `/` – signed-in ledger: balance cards (dlužíš / dluží ti), drink list with stock/tap links, tvé odběry, nav links. Signed out shows a compact hero with one CTA.
 - `/sign-in` – magic link + passkey shortcut. Supports `?next=` and `?from=nfc` for post-auth return.
 - `/t/[tagToken]` – NFC take screen. Big +1 button, +2/+3, live two-minute undo timer, vlastní-dávka guard, rozebráno / neznámé-štítek states.
-- `/shelves` – single batch form ("zapiš nákup") for the one configured drink.
+- `/shelves` – batch forms ("zapiš nákup") for each configured drink.
 - `/account` – payout account editor (prefix/účet/banka/IBAN) + passkey enrollment.
-- `/admin` – admin-only. Two panels: Pití a štítek (setup wizard if nothing exists yet, otherwise drink name + NFC URL + re-mint button + visible "nové pití" form) and Lidé (members + invites).
+- `/admin` – admin-only. Two panels: Pití a štítky (drink list with NFC URLs + re-mint button per drink + add-drink form) and Lidé (members + invites).
 - `/report/[yyyy-mm]` – monthly folio. Dlužíš / Dluží ti columns with Czech SPD QR images for unpaid debts; debtor-side mark-paid; admin close button for open months.
 
 ## Operational notes
@@ -59,7 +59,7 @@
 - the first authenticated user bootstraps as the initial admin if no members exist yet
 - UI mutations prefer server actions (`src/lib/actions.ts`); only the NFC take/undo flow uses the API routes directly because it needs a client-supplied idempotency key
 - `setupShelfAction` creates product + hidden stock slot + tag sequentially (non-atomic — if the slot insert fails, retry; admin can delete the dangling product if needed)
-- replacing the current drink creates a fresh product + hidden stock slot + tag and archives the old active shelf/tag; it is blocked while the current drink still has an active or queued batch
+- adding a drink creates a fresh product + hidden stock slot + tag; existing drinks remain visible and keep their own history/tags
 - live smoke-tested locally against Postgres: admin bootstrap, invites, payout account save, batch creation, NFC sign-in redirect, take, undo, month close, Czech QR render, and debtor-side mark-paid
 - report summary cards stay status-neutral (`dlužíš`, `dluží ti`) because the amounts can be fully paid while the historical total for the month remains non-zero
 - command-layer `PaymeError.message` strings are in Czech so they surface cleanly in the UI
