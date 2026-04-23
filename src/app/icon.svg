@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="11" fill="#F1E9D3"/>
+  <g transform="translate(32 33) rotate(-10) translate(-32 -33)">
+    <!-- can body -->
+    <rect x="20" y="14" width="24" height="38" rx="2.5" fill="#D9481A"/>
+    <!-- rim shadow -->
+    <rect x="20" y="14" width="24" height="3" fill="#A32F10"/>
+    <!-- top cap -->
+    <ellipse cx="32" cy="14" rx="12" ry="3" fill="#181512"/>
+    <!-- ring pull -->
+    <circle cx="32" cy="13.3" r="2" fill="#F1E9D3" stroke="#181512" stroke-width="0.9"/>
+    <circle cx="32" cy="13.3" r="0.6" fill="#181512"/>
+    <!-- bottom indent -->
+    <ellipse cx="32" cy="52" rx="12" ry="2.5" fill="#A32F10"/>
+    <!-- label stripe -->
+    <rect x="20" y="27" width="24" height="10" fill="#F4EDDC"/>
+    <!-- label P -->
+    <text x="32" y="35.2" text-anchor="middle"
+          font-family="Georgia, serif" font-size="9.5"
+          font-weight="700" font-style="italic" fill="#D9481A">P</text>
+    <!-- vertical highlight -->
+    <rect x="23" y="18" width="1.4" height="30" rx="0.7" fill="#F8F3E3" opacity="0.55"/>
+  </g>
+</svg>

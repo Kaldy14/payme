@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { CanGlyph } from "@/components/can-glyph";
 import { signOutAction } from "@/lib/actions";
 import type { SessionMember } from "@/lib/payme/session";
 
@@ -11,9 +12,9 @@ export function Masthead({ member }: { member: SessionMember | null }) {
           href={member ? "/" : "/sign-in"}
           className="group flex items-baseline gap-3"
         >
-          <span className="display text-[2.1rem] leading-none tracking-tight">
+          <span className="display text-[2.1rem] leading-none tracking-tight inline-flex items-end gap-[0.18em]">
             Chci<span className="display-italic text-ember">Plech</span>
-            <span className="text-ink">.</span>
+            <CanGlyph size={16} className="text-ember -mb-[0.1em] -rotate-[8deg]" title="plechovka" />
           </span>
           <span className="eyebrow hidden sm:inline text-ink-faint">
             pro parťáky z kanceláře
