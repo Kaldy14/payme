@@ -16,7 +16,9 @@ const envSchema = z.object({
 
 export const env = envSchema.parse({
   DATABASE_URL:
-    process.env.DATABASE_URL ?? "postgres://postgres:postgres@127.0.0.1:5432/payme",
+    process.env.DATABASE_URL ??
+    process.env.POSTGRES_URL ??
+    "postgres://postgres:postgres@127.0.0.1:5432/payme",
   BETTER_AUTH_SECRET:
     process.env.BETTER_AUTH_SECRET ??
     "development-only-secret-change-me-123456",

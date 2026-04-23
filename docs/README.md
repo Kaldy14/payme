@@ -46,8 +46,11 @@
 
 - Use `pnpm` for dependency and script management in this repo
 - Local app default port is `3333`; keep `BETTER_AUTH_URL` and `PAYME_BASE_URL` aligned with it unless you intentionally override the port
+- Database env resolution is `DATABASE_URL` first, then `POSTGRES_URL`; this lets the Vercel Supabase integration work without duplicating the Postgres URL
 - Better Auth tables are managed by `pnpm run auth:migrate`
 - PayMe tables are managed by `pnpm run db:migrate`
+- Resend email delivery is already implemented in `src/lib/auth.ts`; enable it with `PAYME_MAGIC_LINK_EMAIL_MODE=resend`, `RESEND_API_KEY`, and a valid `PAYME_MAGIC_LINK_FROM`
+- For deployment, runtime secrets belong in Vercel Project Environment Variables, not GitHub Secrets
 - payout accounts are required before a member can be a creditor in a month close
 - the first authenticated user bootstraps as the initial admin if no members exist yet
 - UI mutations prefer server actions (`src/lib/actions.ts`); only the NFC take/undo flow uses the API routes directly because it needs a client-supplied idempotency key

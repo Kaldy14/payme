@@ -9,6 +9,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Keep the app web-first and iPhone Safari-first for NFC taps until a native client exists.
 - Use `pnpm` as the package manager for installs, scripts, and lockfile updates.
 - Default local web port is `3333`; keep new local run instructions and auth/base URL examples aligned with that port.
+- Runtime/deployment secrets (database, auth, Resend) belong in Vercel project env vars; GitHub Secrets are only for CI workflows.
+- Treat `POSTGRES_URL` from Vercel/Supabase as a valid runtime DB source; do not require a duplicated `DATABASE_URL` unless an explicit override is needed.
 - Treat money and stock changes as transactional server-side commands. Do not move write logic into the browser.
 - Use app-layer auth with `better-auth`; the client must not write directly to Postgres or Supabase tables.
 - Keep the product intentionally lightweight. Prefer the smallest implementation that preserves ledger correctness.

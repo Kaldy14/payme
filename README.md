@@ -46,8 +46,37 @@ Recommended production split:
 
 - frontend: `Vercel`
 - database: hosted Postgres such as `Supabase` or `Neon`
+- email: `Resend` for magic-link delivery
 
 Vercel no longer provisions its old first-party Postgres for new projects; the current official path is a Marketplace Postgres integration. Source: [Vercel Postgres docs](https://vercel.com/docs/postgres), [Vercel Marketplace storage docs](https://vercel.com/docs/marketplace-storage)
+
+If you install the Supabase Vercel integration, PayMe now accepts the injected `POSTGRES_URL` automatically. You do not need to duplicate it into `DATABASE_URL` unless you want to override it explicitly.
+
+### Magic-link email with Resend
+
+Resend is already wired in [`src/lib/auth.ts`](src/lib/auth.ts). To enable it:
+
+1. Set `PAYME_MAGIC_LINK_EMAIL_MODE=resend`
+2. Set `RESEND_API_KEY`
+3. Set `PAYME_MAGIC_LINK_FROM` to a sender/domain verified in Resend
+
+For a deployed app, put these values in **Vercel Project Environment Variables**, not GitHub Secrets.
+
+Use Vercel env for runtime/build variables:
+
+- `BETTER_AUTH_SECRET`
+- `BETTER_AUTH_URL`
+- `PAYME_BASE_URL`
+- `DATABASE_URL`
+- `PAYME_MAGIC_LINK_EMAIL_MODE`
+- `PAYME_MAGIC_LINK_FROM`
+- `RESEND_API_KEY`
+- `PAYME_OFFICE_TIMEZONE`
+- `PAYME_APP_NAME`
+- `PASSKEY_RP_ID`
+- `PASSKEY_RP_NAME`
+
+GitHub Secrets are only the right place if you later add a GitHub Actions workflow that needs them during CI. This app reads its auth/email config at build/runtime on Vercel, so GitHub Secrets do nothing for the deployed app.
 
 ## Local setup
 
