@@ -10,9 +10,15 @@ type Status =
   | { kind: "sent"; email: string }
   | { kind: "error"; message: string };
 
-export function SignInForm({ nextPath }: { nextPath?: string }) {
+export function SignInForm({
+  nextPath,
+  initialEmail,
+}: {
+  nextPath?: string;
+  initialEmail?: string;
+}) {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(initialEmail ?? "");
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [pending, startTransition] = useTransition();
 

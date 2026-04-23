@@ -109,6 +109,19 @@ export async function listInvites(): Promise<InviteRow[]> {
   return result.rows;
 }
 
+export async function listPendingInvites(): Promise<InviteRow[]> {
+  const result = await pool.query<InviteRow>(
+    `
+      select id, email, display_name, role, accepted_at, created_at
+      from app_invite
+      where accepted_at is null
+      order by created_at desc
+      limit 60
+    `,
+  );
+  return result.rows;
+}
+
 export type MemberRow = {
   id: string;
   email: string;

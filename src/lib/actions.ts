@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 import { auth } from "@/lib/auth";
+import { sendInviteEmail } from "@/lib/emails";
 import { findMemberByAuthUserId } from "@/lib/payme/authz";
 import {
   closeMonth,
@@ -17,6 +18,7 @@ import {
   upsertPayoutAccount,
 } from "@/lib/payme/commands";
 import { PaymeError } from "@/lib/payme/errors";
+import { listPendingInvites } from "@/lib/payme/ui-queries";
 
 async function requireMemberFromCookies() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -114,9 +116,59 @@ export async function createInviteAction(
     if (!email || !displayName) {
       return { error: "E-mail a jméno jsou povinné." };
     }
-    await createInvite(member, { email, displayName, role });
+    const invite = await createInvite(member, { email, displayName, role });
+    await sendInviteEmail({
+      email: invite.email,
+      displayName: invite.displayName,
+      role: invite.role,
+      invitedByName: member.display_name,
+    });
     revalidatePath("/admin");
-    return { ok: `${displayName} pozván(a).` };
+    return { ok: `${displayName} pozván(a) a e-mail je odeslaný.` };
+  } catch (err) {
+    return toState(err);
+  }
+}
+
+export async function sendPendingInvitesAction(
+  _prev: ActionState,
+): Promise<ActionState> {
+  try {
+    void _prev;
+    const member = await requireMemberFromCookies();
+    requireAdminRole(member.role);
+
+    const pendingInvites = await listPendingInvites();
+
+    if (pendingInvites.length === 0) {
+      return { ok: "Žádné čekající pozvánky k odeslání." };
+    }
+
+    const failedEmails: string[] = [];
+
+    for (const invite of pendingInvites) {
+      try {
+        await sendInviteEmail({
+          email: invite.email,
+          displayName: invite.display_name,
+          role: invite.role,
+          invitedByName: member.display_name,
+        });
+      } catch {
+        failedEmails.push(invite.email);
+      }
+    }
+
+    revalidatePath("/admin");
+
+    if (failedEmails.length > 0) {
+      const sentCount = pendingInvites.length - failedEmails.length;
+      return {
+        error: `Odesláno ${sentCount} z ${pendingInvites.length}. Nepovedlo se: ${failedEmails.join(", ")}`,
+      };
+    }
+
+    return { ok: `Odesláno ${pendingInvites.length} čekajících pozvánek.` };
   } catch (err) {
     return toState(err);
   }

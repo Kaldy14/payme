@@ -51,6 +51,7 @@
 - Better Auth tables are managed by `pnpm run auth:migrate`
 - PayMe tables are managed by `pnpm run db:migrate`
 - Resend email delivery is already implemented in `src/lib/auth.ts`; enable it with `PAYME_MAGIC_LINK_EMAIL_MODE=resend`, `RESEND_API_KEY`, and a valid `PAYME_MAGIC_LINK_FROM`
+- Admin invites now send a real invite email through Resend via `src/lib/emails.ts`; pending invites can be bulk-sent from `/admin` without retyping addresses
 - For deployment, runtime secrets belong in Vercel Project Environment Variables, not GitHub Secrets
 - payout accounts are required before a member can be a creditor in a month close
 - the first authenticated user bootstraps as the initial admin if no members exist yet

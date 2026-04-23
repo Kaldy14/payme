@@ -11,6 +11,7 @@ import {
 } from "@/lib/payme/ui-queries";
 import {
   InviteForm,
+  PendingInvitesForm,
   SetupShelfForm,
   TagMinter,
 } from "./admin-forms";
@@ -46,6 +47,7 @@ export default async function AdminPage() {
   ]);
 
   const shelf = shelves[0] ?? null;
+  const pendingInviteCount = invites.filter((invite) => !invite.accepted_at).length;
 
   return (
     <PageFrame member={member}>
@@ -132,6 +134,9 @@ export default async function AdminPage() {
 
           {invites.length > 0 && (
             <>
+              <div className="mt-4">
+                <PendingInvitesForm pendingCount={pendingInviteCount} />
+              </div>
               <div className="eyebrow mt-6 mb-2">pozvánky</div>
               <ul className="flex flex-col">
                 {invites.map((i) => (

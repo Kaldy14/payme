@@ -16,6 +16,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Use app-layer auth with `better-auth`; the client must not write directly to Postgres or Supabase tables.
 - Keep the product intentionally lightweight. Prefer the smallest implementation that preserves ledger correctness.
 - Keep the current handoff prompt accurate in `docs/next-session-prompt.md` when major milestones land.
+- Admin invites are expected to send real email now. Preserve the `src/lib/emails.ts` invite flow and the `/admin` bulk resend path for pending invites.
 - UI aesthetic is "receipt / ledger paper": cream background, Fraunces display, JetBrains Mono for tabular numbers, hot ember accent. Keep new UI visually consistent with the tokens in `src/app/globals.css`.
 - Mutations go through server actions in `src/lib/actions.ts` (which wrap `src/lib/payme/commands.ts`), never direct client-side SQL. The only client-side mutation path is `POST /api/takes` and `POST /api/takes/:id/undo` from the NFC take screen (both already authorised server-side).
 - When touching settlement or report UI, re-check the real paid/open states in `/report/[yyyy-mm]`; summary cards must not imply an open debt once all lines are paid.

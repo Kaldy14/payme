@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import {
   createInviteAction,
   mintTagAction,
+  sendPendingInvitesAction,
   setupShelfAction,
 } from "@/lib/actions";
 
@@ -210,6 +211,35 @@ export function InviteForm() {
       </div>
       <button type="submit" disabled={pending} className="btn btn-ember">
         {pending ? "pozývám…" : "pozvat"}
+      </button>
+      <Status state={state} />
+    </form>
+  );
+}
+
+export function PendingInvitesForm({ pendingCount }: { pendingCount: number }) {
+  const [state, action, pending] = useActionState<State, FormData>(
+    sendPendingInvitesAction,
+    {},
+  );
+
+  if (pendingCount <= 0) {
+    return null;
+  }
+
+  return (
+    <form action={action} className="paper-card-flat p-3 flex flex-col gap-3">
+      <div className="flex items-baseline justify-between gap-3">
+        <div>
+          <div className="eyebrow">čekající pozvánky</div>
+          <div className="text-[0.88rem] text-ink-soft mt-1">
+            Už uložené pozvánky pošli všem najednou. Bez přepisování e-mailů.
+          </div>
+        </div>
+        <span className="stamp stamp-closed shrink-0">{pendingCount}</span>
+      </div>
+      <button type="submit" disabled={pending} className="btn btn-sm btn-ghost">
+        {pending ? "odesílám…" : "poslat čekající e-maily"}
       </button>
       <Status state={state} />
     </form>

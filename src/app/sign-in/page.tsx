@@ -7,7 +7,7 @@ import { SignInForm } from "./sign-in-form";
 export const dynamic = "force-dynamic";
 
 type PageProps = {
-  searchParams?: Promise<{ next?: string; from?: string }>;
+  searchParams?: Promise<{ next?: string; from?: string; email?: string }>;
 };
 
 export default async function SignInPage({ searchParams }: PageProps) {
@@ -43,7 +43,7 @@ export default async function SignInPage({ searchParams }: PageProps) {
           )}
         </div>
 
-        <SignInForm nextPath={params.next} />
+        <SignInForm nextPath={params.next} initialEmail={params.email} />
 
         <ul className="mt-6 space-y-2 text-[0.86rem] text-ink-soft">
           <li>— Tvůj e-mail musí být pozvaný, nebo jsi první admin.</li>
