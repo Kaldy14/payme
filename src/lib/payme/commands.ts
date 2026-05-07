@@ -5,7 +5,7 @@ import { env } from "@/lib/env";
 import type { MemberRecord } from "@/lib/payme/authz";
 import { PaymeError } from "@/lib/payme/errors";
 import { createId, createTagToken, normalizeEmail } from "@/lib/payme/ids";
-import { buildSpdPayload } from "@/lib/payme/payments";
+import { buildSpdAccount, buildSpdPayload } from "@/lib/payme/payments";
 
 type CreateInviteInput = {
   email: string;
@@ -294,6 +294,8 @@ export async function upsertPayoutAccount(
   memberId: string,
   input: PayoutAccountInput,
 ) {
+  buildSpdAccount(input);
+
   await pool.query(
     `
       insert into app_member_payout_account (

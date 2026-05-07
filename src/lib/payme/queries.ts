@@ -1,5 +1,5 @@
 import { firstRow, pool } from "@/lib/db/pool";
-import { buildSpdQrDataUrl } from "@/lib/payme/payments";
+import { buildSpdPayload, buildSpdQrDataUrl } from "@/lib/payme/payments";
 
 export async function getTagSummary(tagToken: string) {
   return firstRow(
@@ -94,10 +94,21 @@ export async function getMonthlyReport(memberId: string, monthKey: string) {
   );
 
   const lines = await Promise.all(
-    result.rows.map(async (line) => ({
-      ...line,
-      qr_code_data_url: await buildSpdQrDataUrl(line.qr_payload),
-    })),
+    result.rows.map(async (line) => {
+      const qrPayload = buildSpdPayload({
+        accountPrefix: line.creditor_account_prefix_snapshot,
+        accountNumber: line.creditor_account_number_snapshot,
+        bankCode: line.creditor_bank_code_snapshot,
+        amountMinor: line.amount_minor,
+        message: line.payment_message,
+      });
+
+      return {
+        ...line,
+        qr_payload: qrPayload,
+        qr_code_data_url: await buildSpdQrDataUrl(qrPayload),
+      };
+    }),
   );
 
   return {
