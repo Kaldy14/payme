@@ -14,7 +14,7 @@ This app is for a small group of friends/colleagues with iPhones in the Czech Re
 - others take items from the shared drink stash
 - NFC tags open the app flow per drink
 - the app records who took what from the active batch
-- at month end, the app shows who owes whom and generates Czech QR payment payloads
+- during the month and at month end, the app shows who owes whom and generates Czech QR payment payloads
 
 Important product constraints:
 
@@ -28,6 +28,7 @@ Important product constraints:
 - online-only at tap time
 - manual admin month close
 - append-only take events with compensating undo/correction behavior
+- live open-month settlement markers prevent already-paid drinks from being charged again at month close
 
 ## Current status
 
@@ -40,9 +41,9 @@ Landed in the UI pass (iteration 2):
 - `/` — signed-in ledger (balance cards dlužíš / dluží ti, drink list, tvé odběry) and a compact signed-out hero
 - `/sign-in` — magic link + passkey with `?next=` and `?from=nfc` support
 - `/t/[tagToken]` — NFC take flow: +1 primary button, +2/+3, live two-minute undo, vlastní-dávka guard, rozebráno/neznámé-štítek states
-- `/shelves` — "zapiš nákup" forms for the configured drinks
+- `/shelves` — stock-style overview for each drink, active-batch takers, who stocked it, live per-person drink debts with QR payment + settle button, and "zapiš nákup" forms
 - `/account` — český účet editor + passkey enrollment
-- `/admin` — two panels: Pití a štítky (drink list with NFC URL + re-mint per drink + add-drink form) and Lidé (members + invites)
+- `/admin` — Pití a štítky (drink list with NFC URL + re-mint per drink + add-drink form), Dávky (recent stockups with admin move-to-drink correction), and Lidé (members + invites)
 - `/report/[yyyy-mm]` — Dlužíš / Dluží ti columns with Czech SPD QR images, mark-paid, admin close-month with confirm
 - server actions in `src/lib/actions.ts` wrap `src/lib/payme/commands.ts` for all non-NFC mutations and `setupShelfAction` adds a new drink + hidden stock slot + tag
 - UI data helpers in `src/lib/payme/ui-queries.ts`
@@ -71,7 +72,7 @@ Main implementation files:
 - API routes: `/Users/kaldy/Data/Repos/payme/src/app/api`
 - UI shell: `/Users/kaldy/Data/Repos/payme/src/components/app-shell.tsx`
 - design tokens: `/Users/kaldy/Data/Repos/payme/src/app/globals.css`
-- migration: `/Users/kaldy/Data/Repos/payme/db/migrations/001_payme_domain.sql`
+- migrations: `/Users/kaldy/Data/Repos/payme/db/migrations/001_payme_domain.sql`, `/Users/kaldy/Data/Repos/payme/db/migrations/002_live_settlement_markers.sql`
 
 ## What is left to do
 

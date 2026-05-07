@@ -1,10 +1,12 @@
 import Link from "next/link";
 
 import { PageFrame } from "@/components/app-shell";
+import { OpenDebts } from "@/components/open-debts";
 import { currentMonthKey, formatCzk, formatMonthKey, formatShortDate } from "@/lib/format";
 import { getSessionMember } from "@/lib/payme/session";
 import {
   getOpenMonthSummary,
+  listOpenDebtsByProduct,
   listRecentTakes,
   listShelfOverviews,
   type ShelfOverview,
@@ -19,9 +21,10 @@ export default async function Home() {
     return <SignedOutView />;
   }
 
-  const [shelves, summary, takes] = await Promise.all([
+  const [shelves, summary, debts, takes] = await Promise.all([
     listShelfOverviews(),
     getOpenMonthSummary(member.memberId),
+    listOpenDebtsByProduct(member.memberId),
     listRecentTakes(member.memberId, 6),
   ]);
 
@@ -48,7 +51,7 @@ export default async function Home() {
             tone={summary.owed_minor > 0 ? "debt" : "zero"}
             footnote={
               summary.owed_minor > 0
-                ? "Splatné při uzavření měsíce."
+                ? "Vyrovnej kdykoliv rovnou níž."
                 : "Čisto. Drž to tak."
             }
           />
@@ -58,11 +61,13 @@ export default async function Home() {
             tone={summary.owed_to_me_minor > 0 ? "credit" : "zero"}
             footnote={
               summary.owed_to_me_minor > 0
-                ? "Od těch, co si brali z tvých nákupů."
+                ? "Až ti zaplatí, označí si to u sebe."
                 : "Zatím ti nikdo nic nedluží."
             }
           />
         </div>
+
+        <OpenDebts debts={debts} />
 
         {shelves.length > 0 ? (
           <ShelfList shelves={shelves} />
@@ -73,9 +78,6 @@ export default async function Home() {
         <RecentTakes takes={takes} />
 
         <div className="mt-8 flex flex-wrap gap-3">
-          <Link href={`/report/${month}`} className="btn">
-            konec měsíce →
-          </Link>
           <Link href="/shelves" className="btn btn-ghost">
             něco jsem přinesl/a
           </Link>

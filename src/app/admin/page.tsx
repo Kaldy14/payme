@@ -2,18 +2,22 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { PageFrame } from "@/components/app-shell";
+import { env } from "@/lib/env";
 import { formatDateTime } from "@/lib/format";
 import { getSessionMember } from "@/lib/payme/session";
 import {
   listInvites,
+  listBatches,
   listMembers,
   listShelfOverviews,
+  listShelfStockOverviews,
 } from "@/lib/payme/ui-queries";
 import {
   AddDrinkForm,
+  BatchTable,
+  DrinkTagTable,
   InviteForm,
   PendingInvitesForm,
-  TagMinter,
 } from "./admin-forms";
 
 export const dynamic = "force-dynamic";
@@ -40,13 +44,16 @@ export default async function AdminPage() {
     );
   }
 
-  const [shelves, invites, members] = await Promise.all([
+  const [shelves, stock, batches, invites, members] = await Promise.all([
     listShelfOverviews(),
+    listShelfStockOverviews(),
+    listBatches(),
     listInvites(),
     listMembers(),
   ]);
 
   const pendingInviteCount = invites.filter((invite) => !invite.accepted_at).length;
+  const baseUrl = env.PAYME_BASE_URL;
 
   return (
     <PageFrame member={member}>
@@ -74,37 +81,24 @@ export default async function AdminPage() {
           </div>
 
           <div className="mt-3 flex flex-col gap-4">
-            {shelves.length > 0 ? (
-              shelves.map((shelf) => (
-                <div key={shelf.shelf_id} className="paper-card p-4 sm:p-5">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="eyebrow">pití</div>
-                      <div className="display text-[1.3rem] mt-0.5 break-words">
-                        {shelf.product_name}
-                      </div>
-                    </div>
-                    {shelf.active_batch_id ? (
-                      <span className="stamp stamp-paid shrink-0">aktivní</span>
-                    ) : (
-                      <span className="stamp stamp-closed shrink-0">bez dávky</span>
-                    )}
-                  </div>
-                  <div className="mt-4">
-                    <TagMinter shelfId={shelf.shelf_id} currentToken={shelf.tag_token} />
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="paper-card p-5 text-center">
-                <span className="stamp stamp-closed mx-auto">bez pití</span>
-                <p className="rubric mt-3 text-[0.96rem]">
-                  Zatím tu není žádné pití ani štítek.
-                </p>
-              </div>
-            )}
-
+            <DrinkTagTable shelves={shelves} stock={stock} baseUrl={baseUrl} />
             <AddDrinkForm />
+          </div>
+        </section>
+
+        {/* --- batches --- */}
+        <section className="mt-10">
+          <div className="flex items-baseline justify-between border-b border-ink pb-2">
+            <h2 className="display text-[1.4rem] sm:text-[1.6rem]">Dávky</h2>
+            <span className="eyebrow text-ink-faint">
+              {batches.length > 0 ? `${batches.length}×` : "žádné"}
+            </span>
+          </div>
+          <p className="rubric mt-2 text-[0.92rem]">
+            Když někdo zapíše nákup k jinému pití, přesuň tady celou dávku.
+          </p>
+          <div className="mt-3">
+            <BatchTable batches={batches} shelves={shelves} />
           </div>
         </section>
 

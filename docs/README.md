@@ -5,6 +5,7 @@
 - `docs/implementation-plan.md`: the implementation plan captured in-repo
 - `docs/next-session-prompt.md`: handoff prompt for the next coding session
 - `db/migrations/001_payme_domain.sql`: ChciPlech domain schema
+- `db/migrations/002_live_settlement_markers.sql`: live open-month payment markers
 - `scripts/run-domain-migrations.mjs`: domain migration runner
 - `src/lib/auth.ts`: Better Auth configuration
 - `src/lib/auth-client.ts`: Better Auth client (magic link + passkey)
@@ -29,6 +30,7 @@
 - undo creates compensating events instead of deleting history
 - manual admin month close
 - immutable settlement lines after close
+- live open-month settlements use paid-through markers, so settled drinks are not charged again at month close
 
 ## UI overview
 
@@ -37,9 +39,9 @@
 - `/` – signed-in ledger: balance cards (dlužíš / dluží ti), drink list with stock/tap links, tvé odběry, nav links. Signed out shows a compact hero with one CTA.
 - `/sign-in` – magic link + passkey shortcut. Supports `?next=` and `?from=nfc` for post-auth return.
 - `/t/[tagToken]` – NFC take screen. Big +1 button, +2/+3, live two-minute undo timer, vlastní-dávka guard, rozebráno / neznámé-štítek states.
-- `/shelves` – batch forms ("zapiš nákup") for each configured drink.
+- `/shelves` – stock-style overview for each drink, who stocked it, who took from the active batch, open per-person drink debts with Czech SPD QR, and batch forms ("zapiš nákup").
 - `/account` – payout account editor (prefix/účet/banka/IBAN) + passkey enrollment.
-- `/admin` – admin-only. Two panels: Pití a štítky (drink list with NFC URLs + re-mint button per drink + add-drink form) and Lidé (members + invites).
+- `/admin` – admin-only. Pití a štítky (drink list with NFC URLs + re-mint button per drink + add-drink form), Dávky (recent stockups with an admin-only move-to-drink correction), and Lidé (members + invites).
 - `/report/[yyyy-mm]` – monthly folio. Dlužíš / Dluží ti columns with Czech SPD QR images for unpaid debts; debtor-side mark-paid; admin close button for open months.
 
 ## Operational notes
@@ -56,6 +58,7 @@
 - Transactional emails in `src/lib/emails.ts` use conservative table-based inline HTML so they survive stricter mail clients without broken layout
 - For deployment, runtime secrets belong in Vercel Project Environment Variables, not GitHub Secrets
 - payout accounts are required before a member can be a creditor in a month close
+- payout accounts are also required before a live open-month QR can be shown for that creditor
 - the first authenticated user bootstraps as the initial admin if no members exist yet
 - UI mutations prefer server actions (`src/lib/actions.ts`); only the NFC take/undo flow uses the API routes directly because it needs a client-supplied idempotency key
 - `setupShelfAction` creates product + hidden stock slot + tag sequentially (non-atomic — if the slot insert fails, retry; admin can delete the dangling product if needed)

@@ -8,14 +8,16 @@ import { auth } from "@/lib/auth";
 import { sendInviteEmail } from "@/lib/emails";
 import { findMemberByAuthUserId } from "@/lib/payme/authz";
 import {
+  archiveDrink,
   closeMonth,
   createBatch,
+  createDrinkWithTag,
   createInvite,
-  createProduct,
-  createShelf,
   createTag,
+  markCurrentDebtPaid,
   markSettlementPaid,
-  replaceCurrentDrink,
+  updateDrink,
+  updateBatchDrink,
   upsertPayoutAccount,
 } from "@/lib/payme/commands";
 import { PaymeError } from "@/lib/payme/errors";
@@ -47,7 +49,7 @@ function toState(err: unknown): ActionState {
   return { error: "Něco se pokazilo." };
 }
 
-// --------------- first-time setup (drink + hidden slot + tag) ---------------
+// --------------- add drink (hidden slot + NFC tag) ---------------
 
 export async function setupShelfAction(
   _prev: ActionState & { url?: string },
@@ -60,20 +62,15 @@ export async function setupShelfAction(
     const unitLabel = String(formData.get("unitLabel") ?? "").trim();
     if (!productName) return { error: "Zadej název pití." };
 
-    const product = await createProduct({
+    const result = await createDrinkWithTag({
       name: productName,
       unitLabel: unitLabel || undefined,
     });
-    const shelf = await createShelf({
-      productId: product.id,
-      name: productName,
-    });
-    const tag = await createTag({ shelfId: shelf.id });
 
     revalidatePath("/admin");
     revalidatePath("/");
     revalidatePath("/shelves");
-    return { ok: "Pití a štítek jsou připravené.", url: tag.url };
+    return { ok: "Pití a štítek jsou připravené.", url: result.url };
   } catch (err) {
     return toState(err);
   }
@@ -98,20 +95,23 @@ export async function mintTagAction(
   }
 }
 
-// --------------- replace current drink ---------------
+// --------------- drink edit / archive ---------------
 
-export async function replaceDrinkAction(
-  _prev: ActionState & { url?: string },
+export async function updateDrinkAction(
+  _prev: ActionState,
   formData: FormData,
-): Promise<ActionState & { url?: string }> {
+): Promise<ActionState> {
   try {
     const member = await requireMemberFromCookies();
     requireAdminRole(member.role);
+    const shelfId = String(formData.get("shelfId") ?? "").trim();
     const productName = String(formData.get("productName") ?? "").trim();
     const unitLabel = String(formData.get("unitLabel") ?? "").trim();
+    if (!shelfId) return { error: "Chybí pití." };
     if (!productName) return { error: "Zadej název pití." };
 
-    const result = await replaceCurrentDrink(member, {
+    await updateDrink({
+      shelfId,
       name: productName,
       unitLabel: unitLabel || undefined,
     });
@@ -119,7 +119,28 @@ export async function replaceDrinkAction(
     revalidatePath("/admin");
     revalidatePath("/");
     revalidatePath("/shelves");
-    return { ok: "Nové pití je připravené.", url: result.url };
+    return { ok: "Pití upraveno." };
+  } catch (err) {
+    return toState(err);
+  }
+}
+
+export async function archiveDrinkAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  try {
+    const member = await requireMemberFromCookies();
+    requireAdminRole(member.role);
+    const shelfId = String(formData.get("shelfId") ?? "").trim();
+    if (!shelfId) return { error: "Chybí pití." };
+
+    await archiveDrink(shelfId);
+
+    revalidatePath("/admin");
+    revalidatePath("/");
+    revalidatePath("/shelves");
+    return { ok: "Pití schované." };
   } catch (err) {
     return toState(err);
   }
@@ -265,6 +286,29 @@ export async function createBatchAction(
   }
 }
 
+export async function updateBatchDrinkAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  try {
+    const member = await requireMemberFromCookies();
+    requireAdminRole(member.role);
+    const batchId = String(formData.get("batchId") ?? "").trim();
+    const shelfId = String(formData.get("shelfId") ?? "").trim();
+    if (!batchId) return { error: "Chybí dávka." };
+    if (!shelfId) return { error: "Vyber pití." };
+
+    await updateBatchDrink({ batchId, shelfId });
+
+    revalidatePath("/admin");
+    revalidatePath("/shelves");
+    revalidatePath("/");
+    return { ok: "Dávka přesunuta." };
+  } catch (err) {
+    return toState(err);
+  }
+}
+
 // --------------- month close / mark paid ---------------
 
 export async function closeMonthAction(monthKey: string) {
@@ -282,6 +326,14 @@ export async function markSettlementPaidAction(
   const member = await requireMemberFromCookies();
   await markSettlementPaid(member, settlementId);
   revalidatePath(`/report/${monthKey}`);
+  return { ok: true };
+}
+
+export async function markCurrentDebtPaidAction(creditorMemberId: string) {
+  const member = await requireMemberFromCookies();
+  await markCurrentDebtPaid(member, creditorMemberId);
+  revalidatePath("/shelves");
+  revalidatePath("/");
   return { ok: true };
 }
 

@@ -24,7 +24,13 @@ type CreateShelfInput = {
   description?: string;
 };
 
-type ReplaceCurrentDrinkInput = {
+type CreateDrinkWithTagInput = {
+  name: string;
+  unitLabel?: string;
+};
+
+type UpdateDrinkInput = {
+  shelfId: string;
   name: string;
   unitLabel?: string;
 };
@@ -44,6 +50,11 @@ type CreateBatchInput = {
   purchaseTotalMinor: number;
   unitPriceMinor?: number;
   receiptNote?: string;
+};
+
+type UpdateBatchDrinkInput = {
+  batchId: string;
+  shelfId: string;
 };
 
 type CreateTakeInput = {
@@ -421,10 +432,7 @@ export async function createTag(input: { shelfId: string }) {
   };
 }
 
-export async function replaceCurrentDrink(
-  _actor: MemberRecord,
-  input: ReplaceCurrentDrinkInput,
-) {
+export async function createDrinkWithTag(input: CreateDrinkWithTagInput) {
   const drinkName = input.name.trim();
   const unitLabel = input.unitLabel?.trim() || null;
 
@@ -433,44 +441,6 @@ export async function replaceCurrentDrink(
   }
 
   return withTransaction(async (client) => {
-    const currentShelf = firstRow(
-      await client.query<{ id: string }>(
-        `
-          select id
-          from app_shelf
-          where is_active = true
-          order by created_at desc
-          limit 1
-          for update
-        `,
-      ),
-    );
-
-    if (!currentShelf) {
-      throw new PaymeError(404, "Teď tu ještě není co měnit.");
-    }
-
-    const openBatch = firstRow(
-      await client.query<{ id: string }>(
-        `
-          select id
-          from app_batch
-          where shelf_id = $1
-            and status in ('active', 'queued')
-          limit 1
-          for update
-        `,
-        [currentShelf.id],
-      ),
-    );
-
-    if (openBatch) {
-      throw new PaymeError(
-        409,
-        "Nejdřív musí zmizet aktivní nebo čekající dávka aktuálního pití.",
-      );
-    }
-
     const productId = createId("product");
     const shelfId = createId("shelf");
     const tagId = createId("tag");
@@ -482,27 +452,6 @@ export async function replaceCurrentDrink(
         values ($1, $2, $3)
       `,
       [productId, drinkName, unitLabel],
-    );
-
-    await client.query(
-      `
-        update app_tag
-        set is_active = false,
-            archived_at = now()
-        where shelf_id = $1
-          and is_active = true
-      `,
-      [currentShelf.id],
-    );
-
-    await client.query(
-      `
-        update app_shelf
-        set is_active = false,
-            updated_at = now()
-        where id = $1
-      `,
-      [currentShelf.id],
     );
 
     await client.query(
@@ -526,6 +475,135 @@ export async function replaceCurrentDrink(
       shelfId,
       token,
       url: `${env.PAYME_BASE_URL.replace(/\/$/, "")}/t/${token}`,
+    };
+  });
+}
+
+export async function updateDrink(input: UpdateDrinkInput) {
+  const drinkName = input.name.trim();
+  const unitLabel = input.unitLabel?.trim() || null;
+
+  if (!drinkName) {
+    throw new PaymeError(400, "Zadej název pití.");
+  }
+
+  return withTransaction(async (client) => {
+    const shelf = firstRow(
+      await client.query<{ id: string; product_id: string }>(
+        `
+          select id, product_id
+          from app_shelf
+          where id = $1
+            and is_active = true
+          limit 1
+          for update
+        `,
+        [input.shelfId],
+      ),
+    );
+
+    if (!shelf) {
+      throw new PaymeError(404, "Pití nenalezeno.");
+    }
+
+    await client.query(
+      `
+        update app_product
+        set name = $2,
+            unit_label = $3,
+            updated_at = now()
+        where id = $1
+      `,
+      [shelf.product_id, drinkName, unitLabel],
+    );
+
+    await client.query(
+      `
+        update app_shelf
+        set name = $2,
+            updated_at = now()
+        where id = $1
+      `,
+      [shelf.id, drinkName],
+    );
+
+    return {
+      ok: true,
+    };
+  });
+}
+
+export async function archiveDrink(shelfId: string) {
+  return withTransaction(async (client) => {
+    const shelf = firstRow(
+      await client.query<{ id: string; product_id: string }>(
+        `
+          select id, product_id
+          from app_shelf
+          where id = $1
+            and is_active = true
+          limit 1
+          for update
+        `,
+        [shelfId],
+      ),
+    );
+
+    if (!shelf) {
+      throw new PaymeError(404, "Pití nenalezeno.");
+    }
+
+    const openBatch = firstRow(
+      await client.query<{ id: string }>(
+        `
+          select id
+          from app_batch
+          where shelf_id = $1
+            and status in ('active', 'queued')
+          limit 1
+          for update
+        `,
+        [shelf.id],
+      ),
+    );
+
+    if (openBatch) {
+      throw new PaymeError(409, "Nejdřív vyřeš aktivní nebo čekající dávku.");
+    }
+
+    await client.query(
+      `
+        update app_tag
+        set is_active = false,
+            archived_at = now()
+        where shelf_id = $1
+          and is_active = true
+      `,
+      [shelf.id],
+    );
+
+    await client.query(
+      `
+        update app_shelf
+        set is_active = false,
+            updated_at = now()
+        where id = $1
+      `,
+      [shelf.id],
+    );
+
+    await client.query(
+      `
+        update app_product
+        set is_active = false,
+            updated_at = now()
+        where id = $1
+      `,
+      [shelf.product_id],
+    );
+
+    return {
+      ok: true,
     };
   });
 }
@@ -634,6 +712,139 @@ export async function createBatch(actor: MemberRecord, input: CreateBatchInput) 
       id: batchId,
       status,
       unitPriceMinor,
+    };
+  });
+}
+
+export async function updateBatchDrink(input: UpdateBatchDrinkInput) {
+  return withTransaction(async (client) => {
+    const batch = firstRow(
+      await client.query<{
+        id: string;
+        shelf_id: string;
+        status: "queued" | "active" | "closed";
+      }>(
+        `
+          select id, shelf_id, status
+          from app_batch
+          where id = $1
+          limit 1
+          for update
+        `,
+        [input.batchId],
+      ),
+    );
+
+    if (!batch) {
+      throw new PaymeError(404, "Dávka nenalezena.");
+    }
+
+    if (batch.status === "closed") {
+      throw new PaymeError(409, "Uzavřenou dávku už nepřesouvej.");
+    }
+
+    if (batch.shelf_id === input.shelfId) {
+      return {
+        ok: true,
+      };
+    }
+
+    const shelf = firstRow(
+      await client.query<{ id: string }>(
+        `
+          select id
+          from app_shelf
+          where id = $1
+            and is_active = true
+          limit 1
+          for update
+        `,
+        [input.shelfId],
+      ),
+    );
+
+    if (!shelf) {
+      throw new PaymeError(404, "Pití nenalezeno.");
+    }
+
+    const targetActiveBatch = firstRow(
+      await client.query<{ id: string }>(
+        `
+          select id
+          from app_batch
+          where shelf_id = $1
+            and status = 'active'
+            and id <> $2
+          limit 1
+          for update
+        `,
+        [input.shelfId, input.batchId],
+      ),
+    );
+
+    if (batch.status === "active" && targetActiveBatch) {
+      throw new PaymeError(409, "Tohle pití už má aktivní dávku.");
+    }
+
+    const nextStatus =
+      batch.status === "queued" && !targetActiveBatch ? "active" : batch.status;
+
+    await client.query(
+      `
+        update app_batch
+        set shelf_id = $2,
+            status = $3,
+            activated_at = case
+              when $3 = 'active' and activated_at is null then now()
+              else activated_at
+            end,
+            updated_at = now()
+        where id = $1
+      `,
+      [input.batchId, input.shelfId, nextStatus],
+    );
+
+    await client.query(
+      `
+        update app_take_event
+        set shelf_id = $2
+        where batch_id = $1
+      `,
+      [input.batchId, input.shelfId],
+    );
+
+    if (batch.status === "active") {
+      const nextQueuedBatch = firstRow(
+        await client.query<{ id: string }>(
+          `
+            select id
+            from app_batch
+            where shelf_id = $1
+              and status = 'queued'
+            order by created_at asc
+            limit 1
+            for update
+          `,
+          [batch.shelf_id],
+        ),
+      );
+
+      if (nextQueuedBatch) {
+        await client.query(
+          `
+            update app_batch
+            set status = 'active',
+                activated_at = now(),
+                updated_at = now()
+            where id = $1
+          `,
+          [nextQueuedBatch.id],
+        );
+      }
+    }
+
+    return {
+      ok: true,
     };
   });
 }
@@ -934,9 +1145,19 @@ export async function closeMonth(actor: MemberRecord, monthKey: string) {
           select distinct b.buyer_member_id as creditor_member_id
           from app_take_event e
           join app_batch b on b.id = e.batch_id
+          left join lateral (
+            select sm.settled_through
+            from app_live_settlement_marker sm
+            where sm.month_key = $1
+              and sm.debtor_member_id = e.actor_member_id
+              and sm.creditor_member_id = b.buyer_member_id
+            order by sm.settled_through desc
+            limit 1
+          ) paid on true
           where to_char(e.occurred_at at time zone $2, 'YYYY-MM') = $1
             and e.actor_member_id <> b.buyer_member_id
             and e.delta_units <> 0
+            and e.occurred_at > coalesce(paid.settled_through, '-infinity'::timestamptz)
         )
         select mc.creditor_member_id
         from monthly_creditors mc
@@ -982,8 +1203,18 @@ export async function closeMonth(actor: MemberRecord, monthKey: string) {
         join app_batch b on b.id = e.batch_id
         join app_member creditor on creditor.id = b.buyer_member_id
         join app_member_payout_account pa on pa.member_id = creditor.id
+        left join lateral (
+          select sm.settled_through
+          from app_live_settlement_marker sm
+          where sm.month_key = $1
+            and sm.debtor_member_id = e.actor_member_id
+            and sm.creditor_member_id = b.buyer_member_id
+          order by sm.settled_through desc
+          limit 1
+        ) paid on true
         where to_char(e.occurred_at at time zone $2, 'YYYY-MM') = $1
           and e.actor_member_id <> b.buyer_member_id
+          and e.occurred_at > coalesce(paid.settled_through, '-infinity'::timestamptz)
         group by
           e.actor_member_id,
           b.buyer_member_id,
@@ -1043,6 +1274,143 @@ export async function closeMonth(actor: MemberRecord, monthKey: string) {
       id: periodId,
       alreadyClosed: false,
       linesCreated: aggregates.rowCount,
+    };
+  });
+}
+
+export async function markCurrentDebtPaid(actor: MemberRecord, creditorMemberId: string) {
+  return withTransaction(async (client) => {
+    const cutoff = firstRow(
+      await client.query<{ value: Date }>("select now() as value"),
+    );
+
+    if (!cutoff) {
+      throw new PaymeError(500, "Nepovedlo se načíst čas.");
+    }
+
+    const monthKey = firstRow(
+      await client.query<{ value: string }>(
+        `
+          select to_char($1::timestamptz at time zone $2, 'YYYY-MM') as value
+        `,
+        [cutoff.value, env.PAYME_OFFICE_TIMEZONE],
+      ),
+    );
+
+    if (!monthKey) {
+      throw new PaymeError(500, "Nepovedlo se načíst měsíc.");
+    }
+
+    const aggregate = firstRow(
+      await client.query<SettlementAggregateRow>(
+        `
+          select
+            e.actor_member_id as debtor_member_id,
+            b.buyer_member_id as creditor_member_id,
+            sum(e.delta_units * b.unit_price_minor)::int as amount_minor,
+            creditor.display_name as creditor_name_snapshot,
+            pa.account_prefix as creditor_account_prefix_snapshot,
+            pa.account_number as creditor_account_number_snapshot,
+            pa.bank_code as creditor_bank_code_snapshot
+          from app_take_event e
+          join app_batch b on b.id = e.batch_id
+          join app_member creditor on creditor.id = b.buyer_member_id
+          join app_member_payout_account pa on pa.member_id = creditor.id
+          left join lateral (
+            select sm.settled_through
+            from app_live_settlement_marker sm
+            where sm.month_key = $3
+              and sm.debtor_member_id = e.actor_member_id
+              and sm.creditor_member_id = b.buyer_member_id
+            order by sm.settled_through desc
+            limit 1
+          ) paid on true
+          where e.actor_member_id = $1
+            and b.buyer_member_id = $2
+            and e.actor_member_id <> b.buyer_member_id
+            and to_char(e.occurred_at at time zone $4, 'YYYY-MM') = $3
+            and e.occurred_at <= $5
+            and e.occurred_at > coalesce(paid.settled_through, '-infinity'::timestamptz)
+          group by
+            e.actor_member_id,
+            b.buyer_member_id,
+            creditor.display_name,
+            pa.account_prefix,
+            pa.account_number,
+            pa.bank_code
+          having sum(e.delta_units * b.unit_price_minor) > 0
+        `,
+        [
+          actor.id,
+          creditorMemberId,
+          monthKey.value,
+          env.PAYME_OFFICE_TIMEZONE,
+          cutoff.value,
+        ],
+      ),
+    );
+
+    if (!aggregate) {
+      const creditor = firstRow(
+        await client.query<{ id: string }>(
+          "select id from app_member where id = $1 limit 1",
+          [creditorMemberId],
+        ),
+      );
+
+      if (!creditor) {
+        throw new PaymeError(404, "Tenhle člověk neexistuje.");
+      }
+
+      throw new PaymeError(404, "Otevřený dluh pro tebe neexistuje.");
+    }
+
+    const message = `${env.PAYME_APP_NAME} ${monthKey.value}`;
+    const qrPayload = buildSpdPayload({
+      accountPrefix: aggregate.creditor_account_prefix_snapshot,
+      accountNumber: aggregate.creditor_account_number_snapshot,
+      bankCode: aggregate.creditor_bank_code_snapshot,
+      amountMinor: aggregate.amount_minor,
+      message,
+    });
+    const id = createId("livepay");
+
+    await client.query(
+      `
+        insert into app_live_settlement_marker (
+          id,
+          month_key,
+          debtor_member_id,
+          creditor_member_id,
+          amount_minor,
+          settled_through,
+          creditor_name_snapshot,
+          creditor_account_prefix_snapshot,
+          creditor_account_number_snapshot,
+          creditor_bank_code_snapshot,
+          payment_message,
+          qr_payload
+        ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      `,
+      [
+        id,
+        monthKey.value,
+        actor.id,
+        creditorMemberId,
+        aggregate.amount_minor,
+        cutoff.value,
+        aggregate.creditor_name_snapshot,
+        aggregate.creditor_account_prefix_snapshot,
+        aggregate.creditor_account_number_snapshot,
+        aggregate.creditor_bank_code_snapshot,
+        message,
+        qrPayload,
+      ],
+    );
+
+    return {
+      id,
+      amountMinor: aggregate.amount_minor,
     };
   });
 }
