@@ -52,4 +52,4 @@ export const createTakeSchema = z.object({
   occurredAt: z.iso.datetime().optional(),
 });
 
-export const monthKeySchema = z.string().regex(/^\d{4}-\d{2}$/);
+export const monthKeySchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);

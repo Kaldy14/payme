@@ -158,27 +158,18 @@ export function TakeFlow({
     );
   }
 
-  if (isOwnBatch) {
-    return (
-      <div className="mt-5 paper-card-flat p-4 border-l-4 border-amber text-[0.92rem] text-ink">
-        <span className="eyebrow">vlastní dávka</span>
-        <p className="mt-1">
-          Tuhle dávku platíš ty. Odběry z vlastní dávky ti nevytvoří dluh. Pro
-          pořádek si je ale můžeš zapsat.
-        </p>
-        <div className="mt-3">
-          <TakeButtons
-            onTake={submit}
-            disabled={isPending}
-            quantity={quantityRemaining}
-          />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="mt-5 flex flex-col gap-4">
+      {isOwnBatch && (
+        <div className="paper-card-flat p-4 border-l-4 border-amber text-[0.92rem] text-ink">
+          <span className="eyebrow">vlastní dávka</span>
+          <p className="mt-1">
+            Tuhle dávku platíš ty. Odběry z vlastní dávky ti nevytvoří dluh. Pro
+            pořádek si je ale můžeš zapsat.
+          </p>
+        </div>
+      )}
+
       <TakeButtons onTake={submit} disabled={isPending} quantity={quantityRemaining} />
 
       {status.kind === "submitting" && (
