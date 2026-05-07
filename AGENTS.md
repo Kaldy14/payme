@@ -18,9 +18,11 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Keep the product intentionally lightweight. Prefer the smallest implementation that preserves ledger correctness.
 - Keep the current handoff prompt accurate in `docs/next-session-prompt.md` when major milestones land.
 - Admin invites are expected to send real email now. Preserve the `src/lib/emails.ts` invite flow and the `/admin` bulk resend path for pending invites.
+- Keep email markup conservative: inline styles and table-based layout in `src/lib/emails.ts`. Avoid web-app-level CSS tricks in transactional email templates.
 - UI aesthetic is "receipt / ledger paper": cream background, Fraunces display, JetBrains Mono for tabular numbers, hot ember accent. Keep new UI visually consistent with the tokens in `src/app/globals.css`.
 - Mutations go through server actions in `src/lib/actions.ts` (which wrap `src/lib/payme/commands.ts`), never direct client-side SQL. The only client-side mutation path is `POST /api/takes` and `POST /api/takes/:id/undo` from the NFC take screen (both already authorised server-side).
 - When touching settlement or report UI, re-check the real paid/open states in `/report/[yyyy-mm]`; summary cards must not imply an open debt once all lines are paid.
 - UI is mobile-first (iPhone Safari). Keep headings and cards sized for ~390px viewports and stack multi-column grids on base widths, opening up only at `sm:` and above.
 - UI is Czech-only. All member-facing copy (including `PaymeError.message` from `src/lib/payme/commands.ts` and `src/lib/payme/authz.ts`) stays in Czech, using informal singular ("ty") — it's a friends-only group. Keep error strings short and human.
-- V1 assumes a single shelf. Don't add multi-shelf UI (dropdowns, grids). The admin workshop shows either a bootstrap form (`SetupShelfForm`, creates product + shelf + tag) or the single existing shelf with a tag re-mint.
+- Use the existing multi-drink model. Keep location/place fields hidden, but expose a list of drinks/tags in admin, dashboard, and purchase flows. Do not collapse the UI back to a single global drink.
+- Do not rename historical products in place. New drinks should be added as new records so old takes/history keep their original drink names.

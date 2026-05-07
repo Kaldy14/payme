@@ -28,7 +28,7 @@ export default async function TagPage({ params }: PageProps) {
               <span className="display-italic text-ember">kámo</span>.
             </h1>
             <p className="rubric mt-2 text-[0.96rem]">
-              Tahle polička je jen pro pozvané. Po přihlášení tě vrátíme přímo
+              Tahle appka je jen pro pozvané. Po přihlášení tě vrátíme přímo
               sem.
             </p>
             <Link
@@ -77,14 +77,14 @@ export default async function TagPage({ params }: PageProps) {
     <PageFrame member={member}>
       <section className="mx-auto max-w-md px-4 py-5 sm:px-6 sm:py-8">
         <div className="flex items-baseline justify-between text-[0.7rem]">
-          <span className="eyebrow">§ ťuk na poličku</span>
+          <span className="eyebrow">§ ťuk na štítek</span>
           <span className="tabular text-ink-faint">
             {tagToken.slice(0, 6).toUpperCase()}…
           </span>
         </div>
 
         <header className="mt-3">
-          <div className="eyebrow truncate">{tag.shelf_name}</div>
+          <div className="eyebrow">nfc štítek</div>
           <h1 className="display text-[2.4rem] sm:text-[3.2rem] leading-[0.96] mt-1 break-words">
             {tag.product_name}
           </h1>
@@ -123,8 +123,8 @@ export default async function TagPage({ params }: PageProps) {
           <div className="mt-5 paper-card p-5 text-center">
             <span className="stamp stamp-closed mx-auto">bez dávky</span>
             <p className="rubric mt-3 text-[0.94rem]">
-              Na poličce teď nic není. Kdo přinese další pack, nejdřív zapíše
-              nákup.
+              Tohle pití teď nemá aktivní dávku. Kdo přinese další pack,
+              nejdřív zapíše nákup.
             </p>
             <Link href="/shelves" className="btn btn-ghost mt-4">
               zapsat nákup

@@ -25,7 +25,6 @@ export default async function Home() {
     listRecentTakes(member.memberId, 6),
   ]);
 
-  const shelf = shelves[0] ?? null;
   const month = currentMonthKey();
   const firstName = member.displayName.split(" ")[0];
 
@@ -65,7 +64,11 @@ export default async function Home() {
           />
         </div>
 
-        {shelf ? <ShelfCard shelf={shelf} /> : <NoShelf isAdmin={member.role === "admin"} />}
+        {shelves.length > 0 ? (
+          <ShelfList shelves={shelves} />
+        ) : (
+          <NoShelf isAdmin={member.role === "admin"} />
+        )}
 
         <RecentTakes takes={takes} />
 
@@ -118,6 +121,25 @@ function BalanceCard({
   );
 }
 
+function ShelfList({ shelves }: { shelves: ShelfOverview[] }) {
+  return (
+    <section className="mt-9">
+      <div className="flex items-baseline justify-between border-b border-ink pb-2">
+        <h2 className="display text-[1.4rem] sm:text-[1.7rem] tracking-tight">
+          Aktuální pití
+        </h2>
+        <span className="eyebrow text-ink-faint">{shelves.length}×</span>
+      </div>
+
+      <div className="mt-3 grid gap-4 md:grid-cols-2">
+        {shelves.map((shelf) => (
+          <ShelfCard key={shelf.shelf_id} shelf={shelf} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function ShelfCard({ shelf }: { shelf: ShelfOverview }) {
   const remaining = shelf.quantity_remaining ?? 0;
   const total = shelf.quantity_total ?? 0;
@@ -128,89 +150,82 @@ function ShelfCard({ shelf }: { shelf: ShelfOverview }) {
     shelf.active_batch_id !== null && remaining <= Math.max(2, total * 0.15);
 
   return (
-    <section className="mt-9">
-      <div className="flex items-baseline justify-between border-b border-ink pb-2">
-        <h2 className="display text-[1.4rem] sm:text-[1.7rem] tracking-tight">
-          Polička
-        </h2>
-        {isEmpty ? (
-          <span className="stamp stamp-closed">prázdná</span>
-        ) : isLow ? (
-          <span className="stamp stamp-active">dochází</span>
-        ) : (
-          <span className="stamp stamp-paid">plno</span>
-        )}
-      </div>
-
-      <div className="paper-card mt-3 p-5 sm:p-6">
-        <div className="flex items-baseline justify-between gap-3">
-          <div className="min-w-0">
-            <div className="eyebrow truncate">{shelf.product_name}</div>
-            <h3 className="display text-[1.3rem] sm:text-[1.6rem] leading-tight mt-0.5 break-words">
-              {shelf.shelf_name}
-            </h3>
-          </div>
-          {shelf.tag_token && (
-            <Link
-              href={`/t/${shelf.tag_token}`}
-              className="link-inline text-[0.78rem] tabular whitespace-nowrap"
-            >
-              otevřít odběr →
-            </Link>
-          )}
+    <div className="paper-card p-5 sm:p-6">
+      <div className="flex items-baseline justify-between gap-3">
+        <div className="min-w-0">
+          <div className="eyebrow">nfc štítek</div>
+          <h3 className="display text-[1.3rem] sm:text-[1.6rem] leading-tight mt-0.5 break-words">
+            {shelf.product_name}
+          </h3>
         </div>
-
-        {shelf.active_batch_id ? (
-          <>
-            <div className="mt-4 flex items-baseline gap-3">
-              <span className="tabular text-[2rem] sm:text-[2.4rem] leading-none">
-                {remaining}
-              </span>
-              <span className="tabular text-sm text-ink-soft">
-                / {total} {unit}
-              </span>
-              <span className="ml-auto tabular text-[0.82rem] text-ink-soft whitespace-nowrap">
-                {formatCzk(shelf.unit_price_minor ?? 0)}/{unit}
-              </span>
-            </div>
-            <div className="mt-3 h-[6px] w-full bg-paper-deep overflow-hidden">
-              <div
-                className="h-full bg-ember transition-all"
-                style={{ width: `${pct * 100}%` }}
-              />
-            </div>
-            <div className="mt-2 flex items-baseline justify-between gap-2 text-[0.78rem] text-ink-soft">
-              <span className="truncate">
-                zaplatil/a <span className="italic">{shelf.buyer_name ?? "—"}</span>
-              </span>
-              {shelf.queued_batches > 0 && (
-                <span className="tabular text-ember-deep whitespace-nowrap">
-                  +{shelf.queued_batches} v pořadí
-                </span>
-              )}
-            </div>
-          </>
+        {isEmpty ? (
+          <span className="stamp stamp-closed shrink-0">prázdná</span>
+        ) : isLow ? (
+          <span className="stamp stamp-active shrink-0">dochází</span>
         ) : (
-          <p className="mt-3 text-ink-soft italic text-[0.94rem]">
-            Žádná aktivní dávka. Když někdo přinese novou, zapiš ji.
-          </p>
+          <span className="stamp stamp-paid shrink-0">plno</span>
         )}
       </div>
-    </section>
+
+      {shelf.tag_token && (
+        <Link
+          href={`/t/${shelf.tag_token}`}
+          className="link-inline mt-3 inline-flex text-[0.78rem] tabular"
+        >
+          otevřít odběr →
+        </Link>
+      )}
+
+      {shelf.active_batch_id ? (
+        <>
+          <div className="mt-4 flex items-baseline gap-3">
+            <span className="tabular text-[2rem] sm:text-[2.4rem] leading-none">
+              {remaining}
+            </span>
+            <span className="tabular text-sm text-ink-soft">
+              / {total} {unit}
+            </span>
+            <span className="ml-auto tabular text-[0.82rem] text-ink-soft whitespace-nowrap">
+              {formatCzk(shelf.unit_price_minor ?? 0)}/{unit}
+            </span>
+          </div>
+          <div className="mt-3 h-[6px] w-full bg-paper-deep overflow-hidden">
+            <div
+              className="h-full bg-ember transition-all"
+              style={{ width: `${pct * 100}%` }}
+            />
+          </div>
+          <div className="mt-2 flex items-baseline justify-between gap-2 text-[0.78rem] text-ink-soft">
+            <span className="truncate">
+              zaplatil/a <span className="italic">{shelf.buyer_name ?? "—"}</span>
+            </span>
+            {shelf.queued_batches > 0 && (
+              <span className="tabular text-ember-deep whitespace-nowrap">
+                +{shelf.queued_batches} v pořadí
+              </span>
+            )}
+          </div>
+        </>
+      ) : (
+        <p className="mt-3 text-ink-soft italic text-[0.94rem]">
+          Žádná aktivní dávka. Když někdo přinese nové pití, zapiš ho.
+        </p>
+      )}
+    </div>
   );
 }
 
 function NoShelf({ isAdmin }: { isAdmin: boolean }) {
   return (
     <div className="paper-card mt-9 p-5 sm:p-6 text-center">
-      <span className="stamp stamp-closed mx-auto">bez poličky</span>
+      <span className="stamp stamp-closed mx-auto">bez pití</span>
       <div className="display text-[1.4rem] sm:text-[1.7rem] mt-3">
-        Polička ještě není nastavená.
+        Pití ještě není nastavené.
       </div>
       <p className="rubric mt-2 text-[0.98rem]">
         {isAdmin
-          ? "Jako admin ji nastavíš v sekci správa."
-          : "Požádej admina, aby ji nastavil."}
+          ? "Jako admin ho nastavíš ve správě."
+          : "Požádej admina, aby ho nastavil."}
       </p>
       {isAdmin && (
         <Link href="/admin" className="btn btn-ghost mt-4">
@@ -294,7 +309,7 @@ function SignedOutView() {
           Vyrovnej.
         </h1>
         <p className="rubric mt-4 text-[1rem] sm:text-[1.1rem]">
-          Kamarádská účetní knížka pro jednu polici v kanceláři. Na konci měsíce
+          Kamarádská účetní knížka pro jedno sdílené pití v kanceláři. Na konci měsíce
           QR platba pro české banky, žádná matika v hlavě.
         </p>
         <div className="mt-7 flex justify-center">

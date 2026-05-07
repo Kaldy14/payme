@@ -5,7 +5,7 @@ import { env } from "@/lib/env";
 import type { MemberRecord } from "@/lib/payme/authz";
 import { PaymeError } from "@/lib/payme/errors";
 import { createId, createTagToken, normalizeEmail } from "@/lib/payme/ids";
-import { buildSpdPayload } from "@/lib/payme/payments";
+import { buildSpdAccount, buildSpdPayload } from "@/lib/payme/payments";
 
 type CreateInviteInput = {
   email: string;
@@ -22,6 +22,11 @@ type CreateShelfInput = {
   productId: string;
   name: string;
   description?: string;
+};
+
+type ReplaceCurrentDrinkInput = {
+  name: string;
+  unitLabel?: string;
 };
 
 type PayoutAccountInput = {
@@ -289,6 +294,8 @@ export async function upsertPayoutAccount(
   memberId: string,
   input: PayoutAccountInput,
 ) {
+  buildSpdAccount(input);
+
   await pool.query(
     `
       insert into app_member_payout_account (
@@ -412,6 +419,115 @@ export async function createTag(input: { shelfId: string }) {
     token,
     url: `${env.PAYME_BASE_URL.replace(/\/$/, "")}/t/${token}`,
   };
+}
+
+export async function replaceCurrentDrink(
+  _actor: MemberRecord,
+  input: ReplaceCurrentDrinkInput,
+) {
+  const drinkName = input.name.trim();
+  const unitLabel = input.unitLabel?.trim() || null;
+
+  if (!drinkName) {
+    throw new PaymeError(400, "Zadej název pití.");
+  }
+
+  return withTransaction(async (client) => {
+    const currentShelf = firstRow(
+      await client.query<{ id: string }>(
+        `
+          select id
+          from app_shelf
+          where is_active = true
+          order by created_at desc
+          limit 1
+          for update
+        `,
+      ),
+    );
+
+    if (!currentShelf) {
+      throw new PaymeError(404, "Teď tu ještě není co měnit.");
+    }
+
+    const openBatch = firstRow(
+      await client.query<{ id: string }>(
+        `
+          select id
+          from app_batch
+          where shelf_id = $1
+            and status in ('active', 'queued')
+          limit 1
+          for update
+        `,
+        [currentShelf.id],
+      ),
+    );
+
+    if (openBatch) {
+      throw new PaymeError(
+        409,
+        "Nejdřív musí zmizet aktivní nebo čekající dávka aktuálního pití.",
+      );
+    }
+
+    const productId = createId("product");
+    const shelfId = createId("shelf");
+    const tagId = createId("tag");
+    const token = createTagToken();
+
+    await client.query(
+      `
+        insert into app_product (id, name, unit_label)
+        values ($1, $2, $3)
+      `,
+      [productId, drinkName, unitLabel],
+    );
+
+    await client.query(
+      `
+        update app_tag
+        set is_active = false,
+            archived_at = now()
+        where shelf_id = $1
+          and is_active = true
+      `,
+      [currentShelf.id],
+    );
+
+    await client.query(
+      `
+        update app_shelf
+        set is_active = false,
+            updated_at = now()
+        where id = $1
+      `,
+      [currentShelf.id],
+    );
+
+    await client.query(
+      `
+        insert into app_shelf (id, product_id, name)
+        values ($1, $2, $3)
+      `,
+      [shelfId, productId, drinkName],
+    );
+
+    await client.query(
+      `
+        insert into app_tag (id, shelf_id, token)
+        values ($1, $2, $3)
+      `,
+      [tagId, shelfId, token],
+    );
+
+    return {
+      productId,
+      shelfId,
+      token,
+      url: `${env.PAYME_BASE_URL.replace(/\/$/, "")}/t/${token}`,
+    };
+  });
 }
 
 function resolveUnitPriceMinor(input: CreateBatchInput) {
@@ -539,7 +655,7 @@ export async function activateBatch(input: { shelfId: string; batchId: string })
     );
 
     if (!target) {
-      throw new PaymeError(404, "Tuto dávku na poličce nenajdu.");
+      throw new PaymeError(404, "Tuto dávku u toho pití nenajdu.");
     }
 
     if (target.status === "closed") {
@@ -745,7 +861,7 @@ export async function undoTake(actor: MemberRecord, takeEventId: string) {
     if (laterEvent) {
       throw new PaymeError(
         409,
-        "Vrátit lze jen tvůj poslední odběr z této poličky.",
+        "Vrátit lze jen tvůj poslední odběr z tohoto pití.",
       );
     }
 

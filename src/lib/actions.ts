@@ -15,6 +15,7 @@ import {
   createShelf,
   createTag,
   markSettlementPaid,
+  replaceCurrentDrink,
   upsertPayoutAccount,
 } from "@/lib/payme/commands";
 import { PaymeError } from "@/lib/payme/errors";
@@ -46,7 +47,7 @@ function toState(err: unknown): ActionState {
   return { error: "Něco se pokazilo." };
 }
 
-// --------------- first-time setup (product + shelf + tag) ---------------
+// --------------- first-time setup (drink + hidden slot + tag) ---------------
 
 export async function setupShelfAction(
   _prev: ActionState & { url?: string },
@@ -56,10 +57,8 @@ export async function setupShelfAction(
     const member = await requireMemberFromCookies();
     requireAdminRole(member.role);
     const productName = String(formData.get("productName") ?? "").trim();
-    const shelfName = String(formData.get("shelfName") ?? "").trim();
     const unitLabel = String(formData.get("unitLabel") ?? "").trim();
-    if (!productName) return { error: "Zadej název produktu." };
-    if (!shelfName) return { error: "Zadej název poličky." };
+    if (!productName) return { error: "Zadej název pití." };
 
     const product = await createProduct({
       name: productName,
@@ -67,14 +66,14 @@ export async function setupShelfAction(
     });
     const shelf = await createShelf({
       productId: product.id,
-      name: shelfName,
+      name: productName,
     });
     const tag = await createTag({ shelfId: shelf.id });
 
     revalidatePath("/admin");
     revalidatePath("/");
     revalidatePath("/shelves");
-    return { ok: "Polička nastavena.", url: tag.url };
+    return { ok: "Pití a štítek jsou připravené.", url: tag.url };
   } catch (err) {
     return toState(err);
   }
@@ -90,10 +89,37 @@ export async function mintTagAction(
     const member = await requireMemberFromCookies();
     requireAdminRole(member.role);
     const shelfId = String(formData.get("shelfId") ?? "").trim();
-    if (!shelfId) return { error: "Chybí polička." };
+    if (!shelfId) return { error: "Chybí pití." };
     const result = await createTag({ shelfId });
     revalidatePath("/admin");
     return { ok: "Nový štítek vytvořen.", url: result.url };
+  } catch (err) {
+    return toState(err);
+  }
+}
+
+// --------------- replace current drink ---------------
+
+export async function replaceDrinkAction(
+  _prev: ActionState & { url?: string },
+  formData: FormData,
+): Promise<ActionState & { url?: string }> {
+  try {
+    const member = await requireMemberFromCookies();
+    requireAdminRole(member.role);
+    const productName = String(formData.get("productName") ?? "").trim();
+    const unitLabel = String(formData.get("unitLabel") ?? "").trim();
+    if (!productName) return { error: "Zadej název pití." };
+
+    const result = await replaceCurrentDrink(member, {
+      name: productName,
+      unitLabel: unitLabel || undefined,
+    });
+
+    revalidatePath("/admin");
+    revalidatePath("/");
+    revalidatePath("/shelves");
+    return { ok: "Nové pití je připravené.", url: result.url };
   } catch (err) {
     return toState(err);
   }
@@ -217,7 +243,7 @@ export async function createBatchAction(
     const quantityTotal = Number(formData.get("quantityTotal"));
     const purchaseTotalCzk = Number(formData.get("purchaseTotalCzk"));
     const receiptNote = String(formData.get("receiptNote") ?? "").trim();
-    if (!shelfId) return { error: "Chybí polička." };
+    if (!shelfId) return { error: "Chybí pití." };
     if (!Number.isInteger(quantityTotal) || quantityTotal < 1) {
       return { error: "Počet musí být kladné celé číslo." };
     }

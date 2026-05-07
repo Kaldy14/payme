@@ -89,13 +89,13 @@ function renderPaperEmail({ eyebrow, preheader, bodyHtml, stamp }: PaperEmailOpt
   </head>
   <body style="margin:0;padding:0;background:${C.paper};color:${C.ink};font-family:${FONT_SERIF};">
     <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;color:${C.paper};">${pre}</div>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.paper};">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;background:${C.paper};">
       <tr>
         <td align="center" style="padding:28px 14px 32px;">
-          <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;background:${C.paperLight};border:1px solid ${C.rule};">
+          <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:560px;border-collapse:collapse;background:${C.paperLight};border:1px solid ${C.rule};">
             <tr>
               <td style="padding:22px 24px 14px;border-bottom:1px solid ${C.ink};">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;">
                   <tr>
                     <td style="font-family:${FONT_SERIF};font-size:26px;line-height:1;letter-spacing:-0.02em;color:${C.ink};">
                       Chci<em style="color:${C.ember};font-style:italic;">Plech</em><span style="color:${C.ember};font-size:22px;">&nbsp;●</span>
@@ -108,18 +108,18 @@ function renderPaperEmail({ eyebrow, preheader, bodyHtml, stamp }: PaperEmailOpt
               </td>
             </tr>
             <tr>
-              <td style="padding:24px 24px 8px;font-family:${FONT_SERIF};font-size:16px;line-height:1.55;color:${C.ink};">
+              <td style="padding:24px 24px 8px;">
                 ${bodyHtml}
               </td>
             </tr>
             ${
               stamp
-                ? `<tr><td align="center" style="padding:6px 24px 22px;"><span style="display:inline-block;padding:6px 14px;border:1.5px solid ${C.emberDeep};color:${C.emberDeep};font-family:${FONT_MONO};font-size:10px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;">${esc(stamp)}</span></td></tr>`
+                ? `<tr><td align="center" style="padding:6px 24px 22px;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr><td style="padding:6px 14px;border:1.5px solid ${C.emberDeep};color:${C.emberDeep};font-family:${FONT_MONO};font-size:10px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;">${esc(stamp)}</td></tr></table></td></tr>`
                 : ""
             }
             <tr>
               <td style="padding:14px 24px 18px;border-top:1px solid ${C.rule};font-family:${FONT_MONO};font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:${C.inkFaint};">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;">
                   <tr>
                     <td>ChciPlech · pro parťáky z kanceláře</td>
                     <td align="right">cz</td>
@@ -141,7 +141,7 @@ function renderPaperEmail({ eyebrow, preheader, bodyHtml, stamp }: PaperEmailOpt
 function primaryButton(href: string, label: string) {
   const h = esc(href);
   const l = esc(label);
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 18px;">
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 18px;border-collapse:collapse;">
     <tr>
       <td bgcolor="${C.ember}" style="background:${C.ember};border:1.5px solid ${C.ember};">
         <a href="${h}" target="_blank" style="display:inline-block;padding:13px 22px;font-family:${FONT_MONO};font-size:12px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:${C.paperLight};text-decoration:none;">${l}</a>
@@ -151,27 +151,42 @@ function primaryButton(href: string, label: string) {
 }
 
 function noteBox(innerHtml: string) {
-  return `<div style="padding:12px 14px;border-left:3px solid ${C.ember};background:${C.paper};font-family:${FONT_SERIF};font-size:14px;line-height:1.55;color:${C.inkSoft};margin:10px 0 18px;">${innerHtml}</div>`;
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:10px 0 18px;border-collapse:collapse;background:${C.paper};">
+    <tr>
+      <td width="3" style="width:3px;background:${C.ember};font-size:0;line-height:0;">&nbsp;</td>
+      <td style="padding:12px 14px;font-family:${FONT_SERIF};font-size:14px;line-height:1.55;color:${C.inkSoft};">${innerHtml}</td>
+    </tr>
+  </table>`;
+}
+
+function textBlock(html: string, marginBottom = 16) {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;"><tr><td style="padding:0 0 ${marginBottom}px;font-family:${FONT_SERIF};font-size:16px;line-height:1.55;color:${C.inkSoft};">${html}</td></tr></table>`;
+}
+
+function eyebrowBlock(label: string) {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;"><tr><td style="padding:0 0 8px;font-family:${FONT_MONO};font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:${C.inkSoft};">${esc(label)}</td></tr></table>`;
+}
+
+function headingBlock(html: string) {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;"><tr><td style="padding:0 0 12px;font-family:${FONT_SERIF};font-size:32px;line-height:1.08;font-weight:500;letter-spacing:-0.02em;color:${C.ink};">${html}</td></tr></table>`;
+}
+
+function linkLine(href: string) {
+  const h = esc(href);
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;"><tr><td style="padding:0 0 8px;font-family:${FONT_MONO};font-size:11px;line-height:1.5;color:${C.inkFaint};word-break:break-all;"><a href="${h}" style="color:${C.inkSoft};text-decoration:underline;">${h}</a></td></tr></table>`;
 }
 
 // ---------- magic link ----------
 
 export async function sendMagicLinkEmail(data: { email: string; url: string }) {
   const url = data.url;
-  const urlHtml = esc(url);
 
   const bodyHtml = `
-    <div style="font-family:${FONT_MONO};font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:${C.inkSoft};margin-bottom:8px;">§ magický odkaz</div>
-    <h1 style="margin:0 0 10px;font-family:${FONT_SERIF};font-size:30px;line-height:1.02;font-weight:500;letter-spacing:-0.02em;color:${C.ink};">
-      Klikni a jsi <em style="font-style:italic;color:${C.ember};">uvnitř</em>.
-    </h1>
-    <p style="margin:0 0 16px;color:${C.inkSoft};">
-      Tady je tvůj jednorázový přihlašovací odkaz. Funguje jednou a chvíli — tak ať ti nevystydne.
-    </p>
+    ${eyebrowBlock("§ magický odkaz")}
+    ${headingBlock(`Klikni a jsi <em style="font-style:italic;color:${C.ember};">uvnitř</em>.`)}
+    ${textBlock("Tady je tvůj jednorázový přihlašovací odkaz. Funguje jednou a chvíli — tak ať ti nevystydne.")}
     ${primaryButton(url, "přihlásit se →")}
-    <p style="margin:0 0 6px;font-family:${FONT_MONO};font-size:11px;letter-spacing:0.08em;color:${C.inkFaint};word-break:break-all;">
-      <a href="${urlHtml}" style="color:${C.inkSoft};text-decoration:underline;">${urlHtml}</a>
-    </p>
+    ${linkLine(url)}
     ${noteBox(`
       — odkaz vyprší, tak si pospěš<br>
       — jedno kliknutí, pak je po něm<br>
@@ -231,25 +246,17 @@ export async function sendInviteEmail(data: {
     : "Máš pozvánku do ChciPlechu";
 
   const bodyHtml = `
-    <div style="font-family:${FONT_MONO};font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:${C.inkSoft};margin-bottom:8px;">§ pozvánka</div>
-    <h1 style="margin:0 0 12px;font-family:${FONT_SERIF};font-size:32px;line-height:1.02;font-weight:500;letter-spacing:-0.02em;color:${C.ink};">
-      Čau, <em style="font-style:italic;color:${C.ember};">${firstNameHtml}</em>!
-    </h1>
-    <p style="margin:0 0 14px;">
-      <strong>${inviterHtml}</strong> tě zrovna vtáhl(a) do <strong>ChciPlechu</strong>. Vítej v partě.
-    </p>
-    <p style="margin:0 0 18px;color:${C.inkSoft};">
-      Co to je? Parta z kanceláře, co si v kuchyni drží jednu polici plnou plechovek a svačin. Každý si bere, co chce — ťukne telefonem na NFC štítek a je to zapsáno. Na konci měsíce ti appka vyplivne QR platbu do české banky. Žádné excely. Žádné hádání, kdo vlastně koupil tu kolu.
-    </p>
+    ${eyebrowBlock("§ pozvánka")}
+    ${headingBlock(`Čau, <em style="font-style:italic;color:${C.ember};">${firstNameHtml}</em>!`)}
+    ${textBlock(`<strong>${inviterHtml}</strong> tě zrovna vtáhl(a) do <strong>ChciPlechu</strong>. Vítej v partě.`, 14)}
+    ${textBlock("Co to je? Parta z kanceláře, co si v kuchyni drží jednu polici plnou plechovek a svačin. Každý si bere, co chce — ťukne telefonem na NFC štítek a je to zapsáno. Na konci měsíce ti appka vyplivne QR platbu do české banky. Žádné excely. Žádné hádání, kdo vlastně koupil tu kolu.", 18)}
     ${primaryButton(signInHref, "přihlásit se →")}
     ${noteBox(`
       — tvůj e-mail <span style="font-family:${FONT_MONO};font-size:12px;">${emailHtml}</span> už máme na seznamu<br>
       — žádná hesla, nikdy — stačí magický odkaz, nebo Face ID<br>
       — role: <em>${roleLabelHtml}</em>
     `)}
-    <p style="margin:14px 0 0;color:${C.inkSoft};font-size:14px;">
-      Mimochodem: jméno appky je doslova „chci plech&#8201;″. Tak se moc nediv, až se ti první ráno připomene, že máš žízeň.
-    </p>
+    ${textBlock("Mimochodem: jméno appky je doslova „chci plech″. Tak se moc nediv, až se ti první ráno připomene, že máš žízeň.", 0)}
   `;
 
   const html = renderPaperEmail({

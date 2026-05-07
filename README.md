@@ -5,7 +5,7 @@ ChciPlech is a web-first, friends-only office snack ledger for iPhone users.
 The product goal is simple:
 
 - buyers add packs of drinks or snacks they brought in
-- shelf NFC tags open a product URL in iPhone Safari
+- one NFC tag opens the current drink URL in iPhone Safari
 - the app records who took what from the active batch
 - the month closes manually
 - each person gets a clear Czech QR payment summary for who they owe

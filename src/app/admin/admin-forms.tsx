@@ -30,9 +30,9 @@ function Status({ state }: { state: State }) {
   );
 }
 
-// --- setup wizard for the one shelf ---
+// --- add drink + tag ---
 
-export function SetupShelfForm() {
+export function AddDrinkForm() {
   const [state, action, pending] = useActionState<TagState, FormData>(
     setupShelfAction,
     {},
@@ -40,10 +40,10 @@ export function SetupShelfForm() {
 
   return (
     <form action={action} className="paper-card mt-3 p-4 sm:p-5 flex flex-col gap-3">
-      <div className="eyebrow">nová parta · první nastavení</div>
+      <div className="eyebrow">nové pití</div>
       <div className="field-row">
         <label className="label" htmlFor="productName">
-          produkt (co bude na poličce)
+          pití
         </label>
         <input
           id="productName"
@@ -51,18 +51,6 @@ export function SetupShelfForm() {
           required
           className="input"
           placeholder="Club-Mate 0.5l"
-        />
-      </div>
-      <div className="field-row">
-        <label className="label" htmlFor="shelfName">
-          název poličky
-        </label>
-        <input
-          id="shelfName"
-          name="shelfName"
-          required
-          className="input"
-          placeholder="Horní police · kuchyň"
         />
       </div>
       <div className="field-row">
@@ -77,7 +65,7 @@ export function SetupShelfForm() {
         />
       </div>
       <button type="submit" disabled={pending} className="btn btn-ember">
-        {pending ? "nastavuji…" : "vytvořit polici a štítek"}
+        {pending ? "vytvářím…" : "vytvořit pití a štítek"}
       </button>
       <Status state={state} />
       {state.url && (
@@ -128,8 +116,7 @@ export function TagMinter({
           <input type="hidden" name="shelfId" value={shelfId} />
           <div className="eyebrow text-ember-deep">opravdu nový?</div>
           <p className="text-[0.85rem] text-ink-soft">
-            Starý NFC štítek přestane fungovat. Budeš ho muset přeprogramovat
-            novou URL.
+            Starý NFC štítek přestane fungovat. Přepiš ho novou URL.
           </p>
           <div className="flex gap-2">
             <button type="submit" disabled={pending} className="btn btn-sm btn-ember">
