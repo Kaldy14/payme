@@ -609,18 +609,20 @@ export async function archiveDrink(shelfId: string) {
 }
 
 function resolveUnitPriceMinor(input: CreateBatchInput) {
-  if (input.unitPriceMinor) {
+  if (input.unitPriceMinor !== undefined) {
     return input.unitPriceMinor;
   }
 
-  if (input.purchaseTotalMinor % input.quantityTotal !== 0) {
+  const unitPriceMinor = Math.round(input.purchaseTotalMinor / input.quantityTotal);
+
+  if (unitPriceMinor < 1) {
     throw new PaymeError(
       400,
-      "Celková částka se nedělí počtem beze zbytku. Zadej cenu za kus ručně.",
+      "Cena za kus je moc nízká.",
     );
   }
 
-  return input.purchaseTotalMinor / input.quantityTotal;
+  return unitPriceMinor;
 }
 
 export async function createBatch(actor: MemberRecord, input: CreateBatchInput) {
