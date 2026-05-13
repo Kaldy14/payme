@@ -100,7 +100,7 @@ export function MarkPaidButton({
         }}
         className="btn btn-sm"
       >
-        {pending ? "označuji…" : "poslal/a jsem · zaplaceno"}
+        {pending ? "označuji…" : "dorazilo · zaplaceno"}
       </button>
       {error && (
         <div className="mt-2 text-[0.82rem] text-stamp-red break-words">

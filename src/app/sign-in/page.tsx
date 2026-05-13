@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { PageFrame } from "@/components/app-shell";
+import { safeNextPath } from "@/lib/payme/redirects";
 import { getSessionMember } from "@/lib/payme/session";
 import { SignInForm } from "./sign-in-form";
 
@@ -13,9 +14,10 @@ type PageProps = {
 export default async function SignInPage({ searchParams }: PageProps) {
   const member = await getSessionMember();
   const params = (await searchParams) ?? {};
+  const nextPath = safeNextPath(params.next);
 
   if (member) {
-    redirect(params.next ?? "/");
+    redirect(nextPath);
   }
 
   const fromNfc = params.from === "nfc";
@@ -43,10 +45,10 @@ export default async function SignInPage({ searchParams }: PageProps) {
           )}
         </div>
 
-        <SignInForm nextPath={params.next} initialEmail={params.email} />
+        <SignInForm nextPath={nextPath} initialEmail={params.email} />
 
         <ul className="mt-6 space-y-2 text-[0.86rem] text-ink-soft">
-          <li>— Tvůj e-mail musí být pozvaný, nebo jsi první admin.</li>
+          <li>— Tvůj e-mail musí být pozvaný.</li>
           <li>— Odkaz funguje jen jednou.</li>
           <li>— Žádná hesla, nikdy.</li>
         </ul>

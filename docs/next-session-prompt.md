@@ -34,18 +34,27 @@ Important product constraints:
 
 Backend, auth, API routes, and a simplified, Czech, mobile-first UI are all implemented.
 
+Security hardening landed after the deployment review:
+
+- first-user admin bootstrap is disabled; fresh deployments need a pre-seeded member/invite
+- production env validation fails closed for auth secret, HTTPS app URLs, Resend email mode/key/sender, and passkey RP ID
+- production Postgres uses verified TLS; `DATABASE_SSL_CA_CERT` / `POSTGRES_CA_CERT` can carry a custom CA bundle if needed
+- custom app POST routes and server actions reject cross-origin mutation requests
+- `next.config.ts` sets CSP, HSTS, frame, content-type, referrer, and permissions headers
+- audited runtime dependencies were patched; `pnpm audit --prod` is clean
+
 Landed in the UI pass (iteration 2):
 
 - receipt/ledger design system in `src/app/globals.css` (Fraunces + JetBrains Mono, ember/moss/stamp palette, hairline rules, stamps, perforations; `overflow-x: clip` on `html`/`body` + `min-width: 0` safety)
 - shared masthead + short-word nav (přehled · nákup · účet · správa) + Czech ticker in `src/components/app-shell.tsx`
 - `/` — signed-in ledger (balance cards dlužíš / dluží ti, drink list, tvé odběry) and a compact signed-out hero
-- `/sign-in` — magic link + passkey with `?next=` and `?from=nfc` support
+- `/sign-in` — magic link + passkey with sanitized `?next=` and `?from=nfc` support
 - `/t/[tagToken]` — NFC take flow: +1 primary button, +2/+3, live two-minute undo, vlastní-dávka guard, rozebráno/neznámé-štítek states
-- `/shelves` — stock-style overview for each drink, active-batch takers, who stocked it, live per-person drink debts with QR payment + settle button, and "zapiš nákup" forms
+- `/shelves` — stock-style overview for each drink, active-batch takers, who stocked it, live per-person drink debts with QR payment + creditor confirmation, and "zapiš nákup" forms
 - `/account` — český účet editor + passkey enrollment
 - `/admin` — Pití a štítky (drink list with NFC URL + re-mint per drink + add-drink form), Dávky (recent stockups with admin move-to-drink correction), and Lidé (members + invites)
-- `/report/[yyyy-mm]` — Dlužíš / Dluží ti columns with Czech SPD QR images, mark-paid, admin close-month with confirm
-- server actions in `src/lib/actions.ts` wrap `src/lib/payme/commands.ts` for all non-NFC mutations and `setupShelfAction` adds a new drink + hidden stock slot + tag
+- `/report/[yyyy-mm]` — Dlužíš / Dluží ti columns with Czech SPD QR images, creditor-side mark-paid, admin close-month with confirm
+- server actions in `src/lib/actions.ts` wrap `src/lib/payme/commands.ts` for all non-NFC mutations, enforce same-origin mutation checks, and `setupShelfAction` adds a new drink + hidden stock slot + tag
 - UI data helpers in `src/lib/payme/ui-queries.ts`
 - formatters in `src/lib/format.ts` use `cs-CZ` throughout
 - error messages in `src/lib/payme/commands.ts` + `authz.ts` are Czech so they surface cleanly

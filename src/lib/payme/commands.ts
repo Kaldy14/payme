@@ -85,14 +85,6 @@ function nowIso(value?: string) {
   return date.toISOString();
 }
 
-async function memberCount(client: PoolClient) {
-  const result = await client.query<{ count: string }>(
-    "select count(*)::text as count from app_member",
-  );
-
-  return Number(result.rows[0]?.count ?? "0");
-}
-
 async function invitedOrExistingMember(email: string, client: PoolClient | typeof pool) {
   const normalizedEmail = normalizeEmail(email);
 
@@ -128,19 +120,7 @@ async function invitedOrExistingMember(email: string, client: PoolClient | typeo
   return Boolean(invite);
 }
 
-export async function canBootstrapAuthUser() {
-  const result = await pool.query<{ count: string }>(
-    "select count(*)::text as count from app_member",
-  );
-
-  return Number(result.rows[0]?.count ?? "0") === 0;
-}
-
 export async function assertAuthEmailAllowed(email: string) {
-  if (await canBootstrapAuthUser()) {
-    return;
-  }
-
   if (!(await invitedOrExistingMember(email, pool))) {
     throw new PaymeError(403, "Tento e-mail není pozván do ChciPlech.");
   }
@@ -188,8 +168,6 @@ export async function syncMemberAfterAuthUserCreate(input: {
       ),
     );
 
-    const totalMembers = await memberCount(client);
-
     if (existingMember) {
       await client.query(
         `
@@ -224,19 +202,6 @@ export async function syncMemberAfterAuthUserCreate(input: {
           where id = $1
         `,
         [invite.id],
-      );
-    } else if (totalMembers === 0) {
-      await client.query(
-        `
-          insert into app_member (
-            id,
-            auth_user_id,
-            email,
-            display_name,
-            role
-          ) values ($1, $2, $3, $4, 'admin')
-        `,
-        [createId("member"), input.userId, normalizedEmail, input.name || "Admin"],
       );
     } else {
       throw new PaymeError(403, "Pro tento účet neexistuje pozvánka.");
@@ -1280,7 +1245,7 @@ export async function closeMonth(actor: MemberRecord, monthKey: string) {
   });
 }
 
-export async function markCurrentDebtPaid(actor: MemberRecord, creditorMemberId: string) {
+export async function markCurrentCreditPaid(actor: MemberRecord, debtorMemberId: string) {
   return withTransaction(async (client) => {
     const cutoff = firstRow(
       await client.query<{ value: Date }>("select now() as value"),
@@ -1343,8 +1308,8 @@ export async function markCurrentDebtPaid(actor: MemberRecord, creditorMemberId:
           having sum(e.delta_units * b.unit_price_minor) > 0
         `,
         [
+          debtorMemberId,
           actor.id,
-          creditorMemberId,
           monthKey.value,
           env.PAYME_OFFICE_TIMEZONE,
           cutoff.value,
@@ -1353,18 +1318,18 @@ export async function markCurrentDebtPaid(actor: MemberRecord, creditorMemberId:
     );
 
     if (!aggregate) {
-      const creditor = firstRow(
+      const debtor = firstRow(
         await client.query<{ id: string }>(
           "select id from app_member where id = $1 limit 1",
-          [creditorMemberId],
+          [debtorMemberId],
         ),
       );
 
-      if (!creditor) {
+      if (!debtor) {
         throw new PaymeError(404, "Tenhle člověk neexistuje.");
       }
 
-      throw new PaymeError(404, "Otevřený dluh pro tebe neexistuje.");
+      throw new PaymeError(404, "Otevřený dluh vůči tobě neexistuje.");
     }
 
     const message = `${env.PAYME_APP_NAME} ${monthKey.value}`;
@@ -1397,8 +1362,8 @@ export async function markCurrentDebtPaid(actor: MemberRecord, creditorMemberId:
       [
         id,
         monthKey.value,
+        debtorMemberId,
         actor.id,
-        creditorMemberId,
         aggregate.amount_minor,
         cutoff.value,
         aggregate.creditor_name_snapshot,
@@ -1425,7 +1390,7 @@ export async function markSettlementPaid(actor: MemberRecord, settlementId: stri
           paid_marked_at = now(),
           paid_by_member_id = $2
       where id = $1
-        and debtor_member_id = $2
+        and creditor_member_id = $2
         and status = 'open'
       returning id
     `,
@@ -1433,7 +1398,7 @@ export async function markSettlementPaid(actor: MemberRecord, settlementId: stri
   );
 
   if (result.rowCount === 0) {
-    throw new PaymeError(404, "Otevřený dluh pro tebe neexistuje.");
+    throw new PaymeError(404, "Otevřený dluh vůči tobě neexistuje.");
   }
 
   return {

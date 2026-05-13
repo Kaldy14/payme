@@ -31,7 +31,7 @@ The repository currently includes:
 
 The app has been smoke-tested locally against PostgreSQL for:
 
-- admin bootstrap
+- existing-admin/member invite flow
 - member invite flow
 - payout-account save
 - batch creation
@@ -75,8 +75,11 @@ Use Vercel env for runtime/build variables:
 - `PAYME_APP_NAME`
 - `PASSKEY_RP_ID`
 - `PASSKEY_RP_NAME`
+- `DATABASE_SSL_CA_CERT` or `POSTGRES_CA_CERT` if your hosted Postgres requires a custom CA bundle
 
 GitHub Secrets are only the right place if you later add a GitHub Actions workflow that needs them during CI. This app reads its auth/email config at build/runtime on Vercel, so GitHub Secrets do nothing for the deployed app.
+
+Production fails closed if required auth, email, passkey, or database values are missing. First-user admin bootstrap is disabled; create members through existing admin invites or database seeding before exposing a fresh deployment.
 
 ## Local setup
 

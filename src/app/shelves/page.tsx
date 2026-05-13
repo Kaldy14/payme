@@ -2,10 +2,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { PageFrame } from "@/components/app-shell";
-import { OpenDebts } from "@/components/open-debts";
+import { OpenCredits, OpenDebts } from "@/components/open-debts";
 import { formatCzk } from "@/lib/format";
 import { getSessionMember } from "@/lib/payme/session";
 import {
+  listOpenCreditsByProduct,
   listOpenDebtsByProduct,
   listShelves,
   listShelfStockOverviews,
@@ -19,10 +20,11 @@ export default async function ShelvesPage() {
   const member = await getSessionMember();
   if (!member) redirect("/sign-in?next=/shelves");
 
-  const [shelves, stock, debts] = await Promise.all([
+  const [shelves, stock, debts, credits] = await Promise.all([
     listShelves(),
     listShelfStockOverviews(),
     listOpenDebtsByProduct(member.memberId),
+    listOpenCreditsByProduct(member.memberId),
   ]);
 
   return (
@@ -44,6 +46,7 @@ export default async function ShelvesPage() {
         )}
 
         <OpenDebts debts={debts} />
+        <OpenCredits credits={credits} />
 
         <div className="mt-6">
           {shelves.length > 0 && (

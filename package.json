@@ -14,10 +14,10 @@
     "auth:migrate": "better-auth migrate --config src/lib/auth.ts -y"
   },
   "dependencies": {
-    "@better-auth/passkey": "^1.6.7",
-    "better-auth": "^1.6.7",
-    "kysely": "^0.28.16",
-    "next": "16.2.4",
+    "@better-auth/passkey": "^1.6.11",
+    "better-auth": "^1.6.11",
+    "kysely": "^0.28.17",
+    "next": "16.2.6",
     "pg": "^8.20.0",
     "qrcode": "^1.5.4",
     "react": "19.2.4",
@@ -33,8 +33,15 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.4",
+    "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "pnpm": {
+    "overrides": {
+      "drizzle-orm": "0.45.2",
+      "postcss": "8.5.10",
+      "lodash": "4.18.1"
+    }
   }
 }

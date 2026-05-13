@@ -1,11 +1,12 @@
 import Link from "next/link";
 
 import { PageFrame } from "@/components/app-shell";
-import { OpenDebts } from "@/components/open-debts";
+import { OpenCredits, OpenDebts } from "@/components/open-debts";
 import { currentMonthKey, formatCzk, formatMonthKey, formatShortDate } from "@/lib/format";
 import { getSessionMember } from "@/lib/payme/session";
 import {
   getOpenMonthSummary,
+  listOpenCreditsByProduct,
   listOpenDebtsByProduct,
   listRecentTakes,
   listShelfOverviews,
@@ -21,10 +22,11 @@ export default async function Home() {
     return <SignedOutView />;
   }
 
-  const [shelves, summary, debts, takes] = await Promise.all([
+  const [shelves, summary, debts, credits, takes] = await Promise.all([
     listShelfOverviews(),
     getOpenMonthSummary(member.memberId),
     listOpenDebtsByProduct(member.memberId),
+    listOpenCreditsByProduct(member.memberId),
     listRecentTakes(member.memberId, 6),
   ]);
 
@@ -68,6 +70,7 @@ export default async function Home() {
         </div>
 
         <OpenDebts debts={debts} />
+        <OpenCredits credits={credits} />
 
         {shelves.length > 0 ? (
           <ShelfList shelves={shelves} />

@@ -11,13 +11,22 @@ function getPoolOptions() {
   const isLocalHost = ["127.0.0.1", "localhost"].includes(url.hostname);
   const connectionUrl = new URL(env.DATABASE_URL);
 
-  if (!isLocalHost) {
-    connectionUrl.searchParams.set("sslmode", "no-verify");
+  if (isLocalHost) {
+    return {
+      connectionString: connectionUrl.toString(),
+      ssl: undefined,
+    };
   }
+
+  const ca = env.DATABASE_SSL_CA_CERT?.replaceAll("\\n", "\n");
+  const shouldVerifyRemoteSsl = process.env.NODE_ENV === "production" || Boolean(ca);
+  connectionUrl.searchParams.set("sslmode", shouldVerifyRemoteSsl ? "verify-full" : "no-verify");
 
   return {
     connectionString: connectionUrl.toString(),
-    ssl: isLocalHost ? undefined : { rejectUnauthorized: false },
+    ssl: shouldVerifyRemoteSsl
+      ? { rejectUnauthorized: true, ca }
+      : { rejectUnauthorized: false },
   };
 }
 

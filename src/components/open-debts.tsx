@@ -1,7 +1,7 @@
 import { formatCzk } from "@/lib/format";
 import { buildCzechAccount } from "@/lib/payme/payments";
-import type { OpenDebtPartner } from "@/lib/payme/ui-queries";
-import { SettleCurrentDebtButton } from "@/components/settle-current-debt-button";
+import type { OpenCreditPartner, OpenDebtPartner } from "@/lib/payme/ui-queries";
+import { SettleCurrentCreditButton } from "@/components/settle-current-credit-button";
 
 export function OpenDebts({ debts }: { debts: OpenDebtPartner[] }) {
   return (
@@ -24,6 +24,27 @@ export function OpenDebts({ debts }: { debts: OpenDebtPartner[] }) {
           ))}
         </div>
       )}
+    </section>
+  );
+}
+
+export function OpenCredits({ credits }: { credits: OpenCreditPartner[] }) {
+  if (credits.length === 0) return null;
+
+  return (
+    <section className="mt-9">
+      <div className="flex items-baseline justify-between border-b border-ink pb-2">
+        <h2 className="display text-[1.4rem] sm:text-[1.7rem] tracking-tight">
+          K potvrzení
+        </h2>
+        <span className="eyebrow text-ink-faint">{credits.length}</span>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-5">
+        {credits.map((credit) => (
+          <OpenCreditCard key={credit.debtor_member_id} credit={credit} />
+        ))}
+      </div>
     </section>
   );
 }
@@ -72,13 +93,7 @@ function OpenDebtCard({ debt }: { debt: OpenDebtPartner }) {
       </ul>
 
       {debt.qr_code_data_url ? (
-        <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex flex-col gap-3">
-            <SettleCurrentDebtButton creditorMemberId={debt.creditor_member_id} />
-            <span className="eyebrow text-ink-faint">
-              označ, až pošleš peníze
-            </span>
-          </div>
+        <div className="mt-4 flex justify-center sm:justify-end">
           <div className="flex flex-col items-center gap-1 self-center sm:self-start">
             <div className="paper-card-flat p-2 border-ink">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -99,6 +114,44 @@ function OpenDebtCard({ debt }: { debt: OpenDebtPartner }) {
           </div>
         </div>
       )}
+    </article>
+  );
+}
+
+function OpenCreditCard({ credit }: { credit: OpenCreditPartner }) {
+  return (
+    <article className="paper-card p-5 sm:p-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="eyebrow">čeká od koho</div>
+          <h3 className="display text-[1.7rem] sm:text-[2rem] leading-tight mt-1 break-words">
+            {credit.debtor_name}
+          </h3>
+        </div>
+        <div className="tabular text-[2rem] sm:text-[2.4rem] leading-none text-moss-deep whitespace-nowrap">
+          {formatCzk(credit.amount_minor)}
+        </div>
+      </div>
+
+      <ul className="mt-4 flex flex-col gap-2 border-y border-dashed border-rule py-3">
+        {credit.products.map((product) => (
+          <li
+            key={product.product_name}
+            className="grid grid-cols-[1fr_auto] gap-3 text-[0.94rem]"
+          >
+            <span className="min-w-0 truncate">
+              {product.units} {product.unit_label ?? "ks"} - {product.product_name}
+            </span>
+            <span className="tabular whitespace-nowrap">
+              {formatCzk(product.amount_minor)}
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      <div className="mt-4">
+        <SettleCurrentCreditButton debtorMemberId={credit.debtor_member_id} />
+      </div>
     </article>
   );
 }

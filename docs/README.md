@@ -39,10 +39,10 @@
 - `/` – signed-in ledger: balance cards (dlužíš / dluží ti), drink list with stock/tap links, tvé odběry, nav links. Signed out shows a compact hero with one CTA.
 - `/sign-in` – magic link + passkey shortcut. Supports `?next=` and `?from=nfc` for post-auth return.
 - `/t/[tagToken]` – NFC take screen. Big +1 button, +2/+3, live two-minute undo timer, vlastní-dávka guard, rozebráno / neznámé-štítek states.
-- `/shelves` – stock-style overview for each drink, who stocked it, who took from the active batch, open per-person drink debts with Czech SPD QR, and batch forms ("zapiš nákup").
+- `/shelves` – stock-style overview for each drink, who stocked it, who took from the active batch, open per-person drink debts with Czech SPD QR, incoming payment confirmations, and batch forms ("zapiš nákup").
 - `/account` – payout account editor (prefix/účet/banka/IBAN) + passkey enrollment.
 - `/admin` – admin-only. Pití a štítky (drink list with NFC URLs + re-mint button per drink + add-drink form), Dávky (recent stockups with an admin-only move-to-drink correction), and Lidé (members + invites).
-- `/report/[yyyy-mm]` – monthly folio. Dlužíš / Dluží ti columns with Czech SPD QR images for unpaid debts; debtor-side mark-paid; admin close button for open months.
+- `/report/[yyyy-mm]` – monthly folio. Dlužíš / Dluží ti columns with Czech SPD QR images for unpaid debts; creditor-side mark-paid; admin close button for open months.
 
 ## Operational notes
 
@@ -50,19 +50,22 @@
 - Local app default port is `3333`; keep `BETTER_AUTH_URL` and `PAYME_BASE_URL` aligned with it unless you intentionally override the port
 - Keep `.env*` out of Vercel CLI deploy uploads via `.vercelignore`; otherwise a local `.env.local` can override production envs during `vercel --prod`
 - Database env resolution is `DATABASE_URL` first, then `POSTGRES_URL`; this lets the Vercel Supabase integration work without duplicating the Postgres URL
-- Supabase/Vercel runtime Postgres uses SSL; non-local connections are normalized to `sslmode=no-verify` and opened with `rejectUnauthorized: false` in `src/lib/db/pool.ts` so Vercel can connect to Supabase without the self-signed-chain failure
+- Production Supabase/Vercel runtime Postgres uses verified TLS (`sslmode=verify-full`, `rejectUnauthorized: true`). If the host needs a custom CA chain, put it in `DATABASE_SSL_CA_CERT` or `POSTGRES_CA_CERT`; non-production remote DBs still allow the old no-verify mode for local troubleshooting.
 - Better Auth tables are managed by `pnpm run auth:migrate`
 - ChciPlech tables are managed by `pnpm run db:migrate`
 - Resend email delivery is already implemented in `src/lib/auth.ts`; enable it with `PAYME_MAGIC_LINK_EMAIL_MODE=resend`, `RESEND_API_KEY`, and a valid `PAYME_MAGIC_LINK_FROM`
+- Production env validation fails closed: no development auth secret, no console magic-link email, no localhost passkey RP ID, and `BETTER_AUTH_URL` / `PAYME_BASE_URL` must be HTTPS on the same origin.
 - Admin invites now send a real invite email through Resend via `src/lib/emails.ts`; pending invites can be bulk-sent from `/admin` without retyping addresses
 - Transactional emails in `src/lib/emails.ts` use conservative table-based inline HTML so they survive stricter mail clients without broken layout
 - For deployment, runtime secrets belong in Vercel Project Environment Variables, not GitHub Secrets
 - payout accounts are required before a member can be a creditor in a month close
 - payout accounts are also required before a live open-month QR can be shown for that creditor
-- the first authenticated user bootstraps as the initial admin if no members exist yet
+- first-user admin bootstrap is disabled; fresh environments need an existing member/invite seeded before public exposure
+- custom app POST routes and server actions reject cross-origin mutation requests before session lookup
+- common browser security headers are configured in `next.config.ts`
 - UI mutations prefer server actions (`src/lib/actions.ts`); only the NFC take/undo flow uses the API routes directly because it needs a client-supplied idempotency key
 - `setupShelfAction` creates product + hidden stock slot + tag sequentially (non-atomic — if the slot insert fails, retry; admin can delete the dangling product if needed)
 - adding a drink creates a fresh product + hidden stock slot + tag; existing drinks remain visible and keep their own history/tags
-- live smoke-tested locally against Postgres: admin bootstrap, invites, payout account save, batch creation, NFC sign-in redirect, take, undo, month close, Czech QR render, and debtor-side mark-paid
+- live smoke-tested locally against Postgres: existing admin/member invites, payout account save, batch creation, NFC sign-in redirect, take, undo, month close, Czech QR render, and creditor-side mark-paid
 - report summary cards stay status-neutral (`dlužíš`, `dluží ti`) because the amounts can be fully paid while the historical total for the month remains non-zero
 - command-layer `PaymeError.message` strings are in Czech so they surface cleanly in the UI

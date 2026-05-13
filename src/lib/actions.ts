@@ -14,17 +14,21 @@ import {
   createDrinkWithTag,
   createInvite,
   createTag,
-  markCurrentDebtPaid,
+  markCurrentCreditPaid,
   markSettlementPaid,
   updateDrink,
   updateBatchDrink,
   upsertPayoutAccount,
 } from "@/lib/payme/commands";
 import { PaymeError } from "@/lib/payme/errors";
+import { assertSameOriginHeaders } from "@/lib/payme/http";
 import { listPendingInvites } from "@/lib/payme/ui-queries";
 
 async function requireMemberFromCookies() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const requestHeaders = await headers();
+  assertSameOriginHeaders(requestHeaders);
+
+  const session = await auth.api.getSession({ headers: requestHeaders });
   if (!session) {
     throw new PaymeError(401, "Nejdřív se přihlas.");
   }
@@ -329,9 +333,9 @@ export async function markSettlementPaidAction(
   return { ok: true };
 }
 
-export async function markCurrentDebtPaidAction(creditorMemberId: string) {
+export async function markCurrentCreditPaidAction(debtorMemberId: string) {
   const member = await requireMemberFromCookies();
-  await markCurrentDebtPaid(member, creditorMemberId);
+  await markCurrentCreditPaid(member, debtorMemberId);
   revalidatePath("/shelves");
   revalidatePath("/");
   return { ok: true };
@@ -340,6 +344,9 @@ export async function markCurrentDebtPaidAction(creditorMemberId: string) {
 // --------------- sign out ---------------
 
 export async function signOutAction() {
-  await auth.api.signOut({ headers: await headers() });
+  const requestHeaders = await headers();
+  assertSameOriginHeaders(requestHeaders);
+
+  await auth.api.signOut({ headers: requestHeaders });
   redirect("/sign-in");
 }

@@ -299,14 +299,19 @@ function SettlementCard({
           </div>
         </div>
 
-        {isDebt && !isPaid && (
+        {!isDebt && !isPaid && (
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex flex-col gap-3">
               <MarkPaidButton settlementId={line.id} monthKey={monthKey} />
               <span className="eyebrow text-ink-faint">
-                označ, až pošleš peníze
+                označ, až dorazí peníze
               </span>
             </div>
+          </div>
+        )}
+
+        {isDebt && !isPaid && (
+          <div className="flex justify-center sm:justify-end">
             <QrBlock
               dataUrl={line.qr_code_data_url}
               message={line.payment_message}

@@ -1,12 +1,13 @@
 import { requireAdmin, requireMember } from "@/lib/payme/authz";
 import { createShelf } from "@/lib/payme/commands";
-import { jsonError, jsonOk, parseJsonBody } from "@/lib/payme/http";
+import { assertSameOriginRequest, jsonError, jsonOk, parseJsonBody } from "@/lib/payme/http";
 import { createShelfSchema } from "@/lib/payme/schemas";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
+    assertSameOriginRequest(request);
     const { member } = await requireMember(request);
     requireAdmin(member);
 

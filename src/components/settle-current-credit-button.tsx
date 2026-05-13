@@ -3,12 +3,12 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-import { markCurrentDebtPaidAction } from "@/lib/actions";
+import { markCurrentCreditPaidAction } from "@/lib/actions";
 
-export function SettleCurrentDebtButton({
-  creditorMemberId,
+export function SettleCurrentCreditButton({
+  debtorMemberId,
 }: {
-  creditorMemberId: string;
+  debtorMemberId: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -23,7 +23,7 @@ export function SettleCurrentDebtButton({
           setError(null);
           startTransition(async () => {
             try {
-              await markCurrentDebtPaidAction(creditorMemberId);
+              await markCurrentCreditPaidAction(debtorMemberId);
               router.refresh();
             } catch (err) {
               setError(
@@ -34,7 +34,7 @@ export function SettleCurrentDebtButton({
         }}
         className="btn btn-sm"
       >
-        {pending ? "označuji..." : "poslal/a jsem - vyrovnáno"}
+        {pending ? "označuji..." : "dorazilo - vyrovnáno"}
       </button>
       {error && (
         <div className="mt-2 text-[0.82rem] text-stamp-red break-words">

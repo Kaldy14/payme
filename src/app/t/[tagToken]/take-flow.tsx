@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { formatCzk } from "@/lib/format";
+import { formatCzk } from "@/lib/money";
 
 type Props = {
   tagToken: string;

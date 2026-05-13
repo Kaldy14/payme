@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { authClient } from "@/lib/auth-client";
+import { safeNextPath } from "@/lib/payme/redirects";
 
 type Status =
   | { kind: "idle" }
@@ -22,7 +23,7 @@ export function SignInForm({
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [pending, startTransition] = useTransition();
 
-  const callbackURL = nextPath && nextPath.startsWith("/") ? nextPath : "/";
+  const callbackURL = safeNextPath(nextPath);
 
   async function handleMagic(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();

@@ -392,6 +392,90 @@ export async function listOpenDebtsByProduct(
   );
 }
 
+export type OpenCreditPartner = {
+  debtor_member_id: string;
+  debtor_name: string;
+  amount_minor: number;
+  products: OpenDebtProduct[];
+};
+
+type OpenCreditRow = {
+  debtor_member_id: string;
+  debtor_name: string;
+  product_name: string;
+  unit_label: string | null;
+  units: number;
+  amount_minor: number;
+};
+
+export async function listOpenCreditsByProduct(
+  memberId: string,
+): Promise<OpenCreditPartner[]> {
+  const result = await pool.query<OpenCreditRow>(
+    `
+      select
+        e.actor_member_id as debtor_member_id,
+        debtor.display_name as debtor_name,
+        p.name as product_name,
+        p.unit_label,
+        sum(e.delta_units)::int as units,
+        sum(e.delta_units * b.unit_price_minor)::int as amount_minor
+      from app_take_event e
+      join app_batch b on b.id = e.batch_id
+      join app_shelf s on s.id = e.shelf_id
+      join app_product p on p.id = s.product_id
+      join app_member debtor on debtor.id = e.actor_member_id
+      left join lateral (
+        select sm.settled_through
+        from app_live_settlement_marker sm
+        where sm.month_key = to_char(now() at time zone $2, 'YYYY-MM')
+          and sm.debtor_member_id = e.actor_member_id
+          and sm.creditor_member_id = b.buyer_member_id
+        order by sm.settled_through desc
+        limit 1
+      ) paid on true
+      where b.buyer_member_id = $1
+        and e.actor_member_id <> b.buyer_member_id
+        and to_char(e.occurred_at at time zone $2, 'YYYY-MM') = to_char(now() at time zone $2, 'YYYY-MM')
+        and e.occurred_at > coalesce(paid.settled_through, '-infinity'::timestamptz)
+      group by
+        e.actor_member_id,
+        debtor.display_name,
+        p.name,
+        p.unit_label
+      having sum(e.delta_units) > 0
+        and sum(e.delta_units * b.unit_price_minor) > 0
+      order by debtor.display_name asc, p.name asc
+    `,
+    [memberId, env.PAYME_OFFICE_TIMEZONE],
+  );
+
+  const partners = new Map<string, OpenCreditPartner>();
+
+  for (const row of result.rows) {
+    let partner = partners.get(row.debtor_member_id);
+    if (!partner) {
+      partner = {
+        debtor_member_id: row.debtor_member_id,
+        debtor_name: row.debtor_name,
+        amount_minor: 0,
+        products: [],
+      };
+      partners.set(row.debtor_member_id, partner);
+    }
+
+    partner.amount_minor += row.amount_minor;
+    partner.products.push({
+      product_name: row.product_name,
+      unit_label: row.unit_label,
+      units: row.units,
+      amount_minor: row.amount_minor,
+    });
+  }
+
+  return Array.from(partners.values());
+}
+
 export type InviteRow = {
   id: string;
   email: string;
