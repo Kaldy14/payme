@@ -19,7 +19,7 @@ function getPoolOptions() {
   }
 
   const ca = env.DATABASE_SSL_CA_CERT?.replaceAll("\\n", "\n");
-  const shouldVerifyRemoteSsl = process.env.NODE_ENV === "production" || Boolean(ca);
+  const shouldVerifyRemoteSsl = Boolean(ca);
   connectionUrl.searchParams.set("sslmode", shouldVerifyRemoteSsl ? "verify-full" : "no-verify");
 
   return {

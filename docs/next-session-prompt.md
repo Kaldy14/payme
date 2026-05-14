@@ -38,7 +38,7 @@ Security hardening landed after the deployment review:
 
 - first-user admin bootstrap is disabled; fresh deployments need a pre-seeded member/invite
 - production env validation fails closed for auth secret, HTTPS app URLs, Resend email mode/key/sender, and passkey RP ID
-- production Postgres uses verified TLS; `DATABASE_SSL_CA_CERT` / `POSTGRES_CA_CERT` can carry a custom CA bundle if needed
+- hosted Postgres uses the Supabase/Vercel SSL override unless `DATABASE_SSL_CA_CERT` / `POSTGRES_CA_CERT` provides a CA bundle that verifies cleanly
 - custom app POST routes and server actions reject cross-origin mutation requests
 - `next.config.ts` sets CSP, HSTS, frame, content-type, referrer, and permissions headers
 - audited runtime dependencies were patched; `pnpm audit --prod` is clean

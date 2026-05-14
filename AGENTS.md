@@ -13,7 +13,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Runtime/deployment secrets (database, auth, Resend) belong in Vercel project env vars; GitHub Secrets are only for CI workflows.
 - Never let local `.env*` files ride along in Vercel CLI deployments; keep `.vercelignore` blocking them so local dev values do not override production envs.
 - Treat `POSTGRES_URL` from Vercel/Supabase as a valid runtime DB source; do not require a duplicated `DATABASE_URL` unless an explicit override is needed.
-- Keep production non-local Postgres SSL verified in `src/lib/db/pool.ts` (`sslmode=verify-full` plus `rejectUnauthorized: true`). Use `DATABASE_SSL_CA_CERT` or `POSTGRES_CA_CERT` when Supabase/Vercel needs a custom CA chain; non-production remote DBs may keep no-verify for local troubleshooting.
+- Keep the non-local Postgres SSL override in `src/lib/db/pool.ts` when using Supabase/Vercel (`sslmode=no-verify` plus `rejectUnauthorized: false`) unless `DATABASE_SSL_CA_CERT` or `POSTGRES_CA_CERT` is configured with a CA chain that verifies cleanly.
 - Treat money and stock changes as transactional server-side commands. Do not move write logic into the browser.
 - Use app-layer auth with `better-auth`; the client must not write directly to Postgres or Supabase tables.
 - Keep the product intentionally lightweight. Prefer the smallest implementation that preserves ledger correctness.

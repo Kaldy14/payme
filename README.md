@@ -81,6 +81,8 @@ GitHub Secrets are only the right place if you later add a GitHub Actions workfl
 
 Production fails closed if required auth, email, passkey, or database values are missing. First-user admin bootstrap is disabled; create members through existing admin invites or database seeding before exposing a fresh deployment.
 
+Supabase/Vercel Postgres currently needs the project SSL override (`sslmode=no-verify`, `rejectUnauthorized: false`) because the hosted chain does not verify cleanly in Node. Add `DATABASE_SSL_CA_CERT` or `POSTGRES_CA_CERT` to move the pool back to verified TLS.
+
 ## Local setup
 
 1. Copy `.env.example` to `.env.local`

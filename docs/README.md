@@ -50,7 +50,7 @@
 - Local app default port is `3333`; keep `BETTER_AUTH_URL` and `PAYME_BASE_URL` aligned with it unless you intentionally override the port
 - Keep `.env*` out of Vercel CLI deploy uploads via `.vercelignore`; otherwise a local `.env.local` can override production envs during `vercel --prod`
 - Database env resolution is `DATABASE_URL` first, then `POSTGRES_URL`; this lets the Vercel Supabase integration work without duplicating the Postgres URL
-- Production Supabase/Vercel runtime Postgres uses verified TLS (`sslmode=verify-full`, `rejectUnauthorized: true`). If the host needs a custom CA chain, put it in `DATABASE_SSL_CA_CERT` or `POSTGRES_CA_CERT`; non-production remote DBs still allow the old no-verify mode for local troubleshooting.
+- Supabase/Vercel runtime Postgres currently uses the project SSL override (`sslmode=no-verify`, `rejectUnauthorized: false`) because the hosted chain does not verify cleanly in Node. To move back to verified TLS, put the CA bundle in `DATABASE_SSL_CA_CERT` or `POSTGRES_CA_CERT`; the pool will then use `sslmode=verify-full` with `rejectUnauthorized: true`.
 - Better Auth tables are managed by `pnpm run auth:migrate`
 - ChciPlech tables are managed by `pnpm run db:migrate`
 - Resend email delivery is already implemented in `src/lib/auth.ts`; enable it with `PAYME_MAGIC_LINK_EMAIL_MODE=resend`, `RESEND_API_KEY`, and a valid `PAYME_MAGIC_LINK_FROM`
