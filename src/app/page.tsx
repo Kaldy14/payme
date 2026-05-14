@@ -174,7 +174,7 @@ function ShelfCard({ shelf }: { shelf: ShelfOverview }) {
 
       {shelf.tag_token && (
         <Link
-          href={`/t/${shelf.tag_token}`}
+          href={`/t/${shelf.tag_token}?mode=manual`}
           className="link-inline mt-3 inline-flex text-[0.78rem] tabular"
         >
           otevřít odběr →

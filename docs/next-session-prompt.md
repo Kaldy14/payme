@@ -49,7 +49,7 @@ Landed in the UI pass (iteration 2):
 - shared masthead + short-word nav (přehled · nákup · účet · správa) + Czech ticker in `src/components/app-shell.tsx`
 - `/` — signed-in ledger (balance cards dlužíš / dluží ti, drink list, tvé odběry) and a compact signed-out hero
 - `/sign-in` — magic link + passkey with sanitized `?next=` and `?from=nfc` support
-- `/t/[tagToken]` — NFC take flow: +1 primary button, +2/+3, live two-minute undo, vlastní-dávka guard, rozebráno/neznámé-štítek states
+- `/t/[tagToken]` — NFC take flow: bare tag URLs auto-record +1, show a live two-minute undo button for wrong-tag taps, and keep +1/+2/+3 manual buttons behind `?mode=manual`
 - `/shelves` — stock-style overview for each drink, active-batch takers, who stocked it, live per-person drink debts with QR payment + creditor confirmation, and "zapiš nákup" forms
 - `/account` — český účet editor + passkey enrollment
 - `/admin` — Pití a štítky (drink list with NFC URL + re-mint per drink + add-drink form), Dávky (recent stockups with admin move-to-drink correction), and Lidé (members + invites)

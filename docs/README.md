@@ -38,7 +38,7 @@
 - UI is **mobile-first** (iPhone Safari primary target) and **Czech-only** (informal singular).
 - `/` – signed-in ledger: balance cards (dlužíš / dluží ti), drink list with stock/tap links, tvé odběry, nav links. Signed out shows a compact hero with one CTA.
 - `/sign-in` – magic link + passkey shortcut. Supports `?next=` and `?from=nfc` for post-auth return.
-- `/t/[tagToken]` – NFC take screen. Big +1 button, +2/+3, live two-minute undo timer, vlastní-dávka guard, rozebráno / neznámé-štítek states.
+- `/t/[tagToken]` – NFC take screen. Bare NFC URLs auto-record +1, show a live two-minute undo button for wrong-tag taps, and keep the manual +1/+2/+3 buttons behind `?mode=manual`.
 - `/shelves` – stock-style overview for each drink, who stocked it, who took from the active batch, open per-person drink debts with Czech SPD QR, incoming payment confirmations, and batch forms ("zapiš nákup").
 - `/account` – payout account editor (prefix/účet/banka/IBAN) + passkey enrollment.
 - `/admin` – admin-only. Pití a štítky (drink list with NFC URLs + re-mint button per drink + add-drink form), Dávky (recent stockups with an admin-only move-to-drink correction), and Lidé (members + invites).

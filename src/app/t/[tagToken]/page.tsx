@@ -11,10 +11,14 @@ export const dynamic = "force-dynamic";
 
 type PageProps = {
   params: Promise<{ tagToken: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
-export default async function TagPage({ params }: PageProps) {
+export default async function TagPage({ params, searchParams }: PageProps) {
   const { tagToken } = await params;
+  const query = await searchParams;
+  const manualMode = query.mode === "manual";
+  const tagPath = `/t/${tagToken}${manualMode ? "?mode=manual" : ""}`;
   const member = await getSessionMember();
 
   if (!member) {
@@ -32,7 +36,7 @@ export default async function TagPage({ params }: PageProps) {
               sem.
             </p>
             <Link
-              href={`/sign-in?from=nfc&next=${encodeURIComponent(`/t/${tagToken}`)}`}
+              href={`/sign-in?from=nfc&next=${encodeURIComponent(tagPath)}`}
               className="btn btn-ember btn-xl mt-5 w-full"
             >
               přihlásit se
@@ -117,6 +121,7 @@ export default async function TagPage({ params }: PageProps) {
               isOwnBatch={tag.buyer_member_id === member.memberId}
               initialUndoableId={undoableId}
               initialUndoDeadlineMs={undoableId ? undoDeadlineMs : null}
+              autoTake={!manualMode}
             />
           </div>
         ) : (

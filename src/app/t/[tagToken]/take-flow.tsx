@@ -12,6 +12,7 @@ type Props = {
   isOwnBatch: boolean;
   initialUndoableId: string | null;
   initialUndoDeadlineMs: number | null;
+  autoTake: boolean;
 };
 
 type Recent = {
@@ -45,11 +46,12 @@ export function TakeFlow({
   isOwnBatch,
   initialUndoableId,
   initialUndoDeadlineMs,
+  autoTake,
 }: Props) {
   const router = useRouter();
   const [status, setStatus] = useState<FlowStatus>({ kind: "idle" });
   const [recent, setRecent] = useState<Recent | null>(() =>
-    initialUndoableId && initialUndoDeadlineMs
+    !autoTake && initialUndoableId && initialUndoDeadlineMs
       ? {
           id: initialUndoableId,
           units: 1,
@@ -60,6 +62,7 @@ export function TakeFlow({
   );
   const [now, setNow] = useState(() => Date.now());
   const pendingRef = useRef(false);
+  const autoSubmittedRef = useRef(false);
 
   useEffect(() => {
     if (!recent) return;
@@ -88,7 +91,7 @@ export function TakeFlow({
           body: JSON.stringify({
             tagToken,
             units,
-            source: "nfc",
+            source: autoTake ? "nfc" : "manual",
             idempotencyKey,
           }),
         });
@@ -116,8 +119,22 @@ export function TakeFlow({
         pendingRef.current = false;
       }
     },
-    [quantityRemaining, router, tagToken, unitPriceMinor],
+    [autoTake, quantityRemaining, router, tagToken, unitPriceMinor],
   );
+
+  useEffect(() => {
+    if (!autoTake) return;
+    if (autoSubmittedRef.current) return;
+    if (quantityRemaining < 1) return;
+
+    const id = window.setTimeout(() => {
+      if (autoSubmittedRef.current) return;
+      autoSubmittedRef.current = true;
+      void submit(1);
+    }, 0);
+
+    return () => window.clearTimeout(id);
+  }, [autoTake, quantityRemaining, submit]);
 
   const undo = useCallback(async () => {
     if (!recent || !canUndo) return;
@@ -170,9 +187,13 @@ export function TakeFlow({
         </div>
       )}
 
-      <TakeButtons onTake={submit} disabled={isPending} quantity={quantityRemaining} />
+      {autoTake ? (
+        <AutoTakeStatus status={status} />
+      ) : (
+        <TakeButtons onTake={submit} disabled={isPending} quantity={quantityRemaining} />
+      )}
 
-      {status.kind === "submitting" && (
+      {!autoTake && status.kind === "submitting" && (
         <div className="text-center text-ink-soft tabular text-[0.84rem]">
           zapisuji +{status.units}…
         </div>
@@ -193,7 +214,7 @@ export function TakeFlow({
               </div>
               {canUndo && (
                 <div className="text-[0.7rem] uppercase tracking-[0.2em] text-ink-faint mt-1">
-                  vrátit · {Math.ceil(undoMsLeft / 1000)}s
+                  špatný štítek · {Math.ceil(undoMsLeft / 1000)}s
                 </div>
               )}
             </div>
@@ -205,7 +226,7 @@ export function TakeFlow({
               disabled={isPending}
               className="btn btn-ghost btn-sm mt-3 w-full"
             >
-              ↶ vrátit odběr
+              ↶ vrátit tenhle odběr
             </button>
           ) : (
             <div className="eyebrow mt-3 text-ink-faint">
@@ -229,6 +250,37 @@ export function TakeFlow({
       )}
     </div>
   );
+}
+
+function AutoTakeStatus({ status }: { status: FlowStatus }) {
+  if (status.kind === "submitting") {
+    return (
+      <div className="paper-card-flat border-l-4 border-ember p-4 text-center">
+        <span className="eyebrow">nfc zápis</span>
+        <div className="mt-1 tabular text-[1.15rem] text-ember">
+          zapisuji +{status.units}…
+        </div>
+      </div>
+    );
+  }
+
+  if (status.kind === "success") {
+    return (
+      <div className="text-center text-moss-deep italic">
+        Zapsáno. Jestli je to špatný štítek, vrať to níž.
+      </div>
+    );
+  }
+
+  if (status.kind === "idle") {
+    return (
+      <div className="text-center text-ink-soft italic">
+        Chvilku, zapisuju jeden kousek.
+      </div>
+    );
+  }
+
+  return null;
 }
 
 function TakeButtons({
