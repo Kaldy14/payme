@@ -72,9 +72,15 @@ export function CloseMonthButton({ monthKey }: { monthKey: string }) {
 export function MarkPaidButton({
   settlementId,
   monthKey,
+  label = "dorazilo · zaplaceno",
+  pendingLabel = "označuji…",
+  className = "btn btn-sm",
 }: {
   settlementId: string;
   monthKey: string;
+  label?: string;
+  pendingLabel?: string;
+  className?: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -98,9 +104,9 @@ export function MarkPaidButton({
             }
           });
         }}
-        className="btn btn-sm"
+        className={className}
       >
-        {pending ? "označuji…" : "dorazilo · zaplaceno"}
+        {pending ? pendingLabel : label}
       </button>
       {error && (
         <div className="mt-2 text-[0.82rem] text-stamp-red break-words">

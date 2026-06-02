@@ -290,46 +290,73 @@ export async function listOpenDebtsByProduct(
 ): Promise<OpenDebtPartner[]> {
   const result = await pool.query<OpenDebtRow>(
     `
-      select
-        b.buyer_member_id as creditor_member_id,
-        creditor.display_name as creditor_name,
-        pa.account_prefix,
-        pa.account_number,
-        pa.bank_code,
-        p.name as product_name,
-        p.unit_label,
-        sum(e.delta_units)::int as units,
-        sum(e.delta_units * b.unit_price_minor)::int as amount_minor
-      from app_take_event e
-      join app_batch b on b.id = e.batch_id
-      join app_shelf s on s.id = e.shelf_id
-      join app_product p on p.id = s.product_id
-      join app_member creditor on creditor.id = b.buyer_member_id
-      left join app_member_payout_account pa on pa.member_id = creditor.id
-      left join lateral (
-        select sm.settled_through
-        from app_live_settlement_marker sm
-        where sm.month_key = to_char(now() at time zone $2, 'YYYY-MM')
-          and sm.debtor_member_id = e.actor_member_id
-          and sm.creditor_member_id = b.buyer_member_id
-        order by sm.settled_through desc
-        limit 1
-      ) paid on true
-      where e.actor_member_id = $1
-        and e.actor_member_id <> b.buyer_member_id
-        and to_char(e.occurred_at at time zone $2, 'YYYY-MM') = to_char(now() at time zone $2, 'YYYY-MM')
-        and e.occurred_at > coalesce(paid.settled_through, '-infinity'::timestamptz)
-      group by
-        b.buyer_member_id,
-        creditor.display_name,
-        pa.account_prefix,
-        pa.account_number,
-        pa.bank_code,
-        p.name,
-        p.unit_label
-      having sum(e.delta_units) > 0
-        and sum(e.delta_units * b.unit_price_minor) > 0
-      order by creditor.display_name asc, p.name asc
+      with live_rows as (
+        select
+          b.buyer_member_id as creditor_member_id,
+          creditor.display_name as creditor_name,
+          pa.account_prefix,
+          pa.account_number,
+          pa.bank_code,
+          p.name as product_name,
+          p.unit_label,
+          sum(e.delta_units)::int as units,
+          sum(e.delta_units * b.unit_price_minor)::int as amount_minor
+        from app_take_event e
+        join app_batch b on b.id = e.batch_id
+        join app_shelf s on s.id = e.shelf_id
+        join app_product p on p.id = s.product_id
+        join app_member creditor on creditor.id = b.buyer_member_id
+        left join app_member_payout_account pa on pa.member_id = creditor.id
+        left join lateral (
+          select sm.settled_through
+          from app_live_settlement_marker sm
+          where sm.month_key = to_char(e.occurred_at at time zone $2, 'YYYY-MM')
+            and sm.debtor_member_id = e.actor_member_id
+            and sm.creditor_member_id = b.buyer_member_id
+          order by sm.settled_through desc
+          limit 1
+        ) paid on true
+        where e.actor_member_id = $1
+          and e.actor_member_id <> b.buyer_member_id
+          and e.occurred_at > coalesce(paid.settled_through, '-infinity'::timestamptz)
+          and not exists (
+            select 1
+            from app_settlement_period sp
+            where sp.month_key = to_char(e.occurred_at at time zone $2, 'YYYY-MM')
+          )
+        group by
+          b.buyer_member_id,
+          creditor.display_name,
+          pa.account_prefix,
+          pa.account_number,
+          pa.bank_code,
+          p.name,
+          p.unit_label
+        having sum(e.delta_units) > 0
+          and sum(e.delta_units * b.unit_price_minor) > 0
+      ),
+      settlement_rows as (
+        select
+          sl.creditor_member_id,
+          sl.creditor_name_snapshot as creditor_name,
+          sl.creditor_account_prefix_snapshot as account_prefix,
+          sl.creditor_account_number_snapshot as account_number,
+          sl.creditor_bank_code_snapshot as bank_code,
+          ('Vyrovnání ' || sp.month_key) as product_name,
+          'měsíc'::text as unit_label,
+          1::int as units,
+          sl.amount_minor
+        from app_settlement_line sl
+        join app_settlement_period sp on sp.id = sl.settlement_period_id
+        where sl.debtor_member_id = $1
+          and sl.status = 'open'
+      )
+      select *
+      from live_rows
+      union all
+      select *
+      from settlement_rows
+      order by creditor_name asc, product_name asc
     `,
     [memberId, env.PAYME_OFFICE_TIMEZONE],
   );
@@ -353,6 +380,12 @@ export async function listOpenDebtsByProduct(
       partners.set(row.creditor_member_id, partner);
     }
 
+    if (!partner.account_number && row.account_number && row.bank_code) {
+      partner.account_prefix = row.account_prefix;
+      partner.account_number = row.account_number;
+      partner.bank_code = row.bank_code;
+    }
+
     partner.amount_minor += row.amount_minor;
     partner.products.push({
       product_name: row.product_name,
@@ -362,19 +395,13 @@ export async function listOpenDebtsByProduct(
     });
   }
 
-  const monthResult = await pool.query<{ value: string }>(
-    `select to_char(now() at time zone $1, 'YYYY-MM') as value`,
-    [env.PAYME_OFFICE_TIMEZONE],
-  );
-  const monthKey = monthResult.rows[0]?.value ?? "";
-
   return Promise.all(
     Array.from(partners.values()).map(async (partner) => {
       if (!partner.account_number || !partner.bank_code) {
         return partner;
       }
 
-      const paymentMessage = `${env.PAYME_APP_NAME} ${monthKey}`;
+      const paymentMessage = `${env.PAYME_APP_NAME} vyrovnání`;
       const qrPayload = buildSpdPayload({
         accountPrefix: partner.account_prefix,
         accountNumber: partner.account_number,
@@ -413,39 +440,64 @@ export async function listOpenCreditsByProduct(
 ): Promise<OpenCreditPartner[]> {
   const result = await pool.query<OpenCreditRow>(
     `
-      select
-        e.actor_member_id as debtor_member_id,
-        debtor.display_name as debtor_name,
-        p.name as product_name,
-        p.unit_label,
-        sum(e.delta_units)::int as units,
-        sum(e.delta_units * b.unit_price_minor)::int as amount_minor
-      from app_take_event e
-      join app_batch b on b.id = e.batch_id
-      join app_shelf s on s.id = e.shelf_id
-      join app_product p on p.id = s.product_id
-      join app_member debtor on debtor.id = e.actor_member_id
-      left join lateral (
-        select sm.settled_through
-        from app_live_settlement_marker sm
-        where sm.month_key = to_char(now() at time zone $2, 'YYYY-MM')
-          and sm.debtor_member_id = e.actor_member_id
-          and sm.creditor_member_id = b.buyer_member_id
-        order by sm.settled_through desc
-        limit 1
-      ) paid on true
-      where b.buyer_member_id = $1
-        and e.actor_member_id <> b.buyer_member_id
-        and to_char(e.occurred_at at time zone $2, 'YYYY-MM') = to_char(now() at time zone $2, 'YYYY-MM')
-        and e.occurred_at > coalesce(paid.settled_through, '-infinity'::timestamptz)
-      group by
-        e.actor_member_id,
-        debtor.display_name,
-        p.name,
-        p.unit_label
-      having sum(e.delta_units) > 0
-        and sum(e.delta_units * b.unit_price_minor) > 0
-      order by debtor.display_name asc, p.name asc
+      with live_rows as (
+        select
+          e.actor_member_id as debtor_member_id,
+          debtor.display_name as debtor_name,
+          p.name as product_name,
+          p.unit_label,
+          sum(e.delta_units)::int as units,
+          sum(e.delta_units * b.unit_price_minor)::int as amount_minor
+        from app_take_event e
+        join app_batch b on b.id = e.batch_id
+        join app_shelf s on s.id = e.shelf_id
+        join app_product p on p.id = s.product_id
+        join app_member debtor on debtor.id = e.actor_member_id
+        left join lateral (
+          select sm.settled_through
+          from app_live_settlement_marker sm
+          where sm.month_key = to_char(e.occurred_at at time zone $2, 'YYYY-MM')
+            and sm.debtor_member_id = e.actor_member_id
+            and sm.creditor_member_id = b.buyer_member_id
+          order by sm.settled_through desc
+          limit 1
+        ) paid on true
+        where b.buyer_member_id = $1
+          and e.actor_member_id <> b.buyer_member_id
+          and e.occurred_at > coalesce(paid.settled_through, '-infinity'::timestamptz)
+          and not exists (
+            select 1
+            from app_settlement_period sp
+            where sp.month_key = to_char(e.occurred_at at time zone $2, 'YYYY-MM')
+          )
+        group by
+          e.actor_member_id,
+          debtor.display_name,
+          p.name,
+          p.unit_label
+        having sum(e.delta_units) > 0
+          and sum(e.delta_units * b.unit_price_minor) > 0
+      ),
+      settlement_rows as (
+        select
+          sl.debtor_member_id,
+          debtor.display_name as debtor_name,
+          ('Vyrovnání ' || sp.month_key) as product_name,
+          'měsíc'::text as unit_label,
+          1::int as units,
+          sl.amount_minor
+        from app_settlement_line sl
+        join app_settlement_period sp on sp.id = sl.settlement_period_id
+        join app_member debtor on debtor.id = sl.debtor_member_id
+        where sl.creditor_member_id = $1
+          and sl.status = 'open'
+      )
+      select *
+      from live_rows
+      union all
+      select *
+      from settlement_rows
+      order by debtor_name asc, product_name asc
     `,
     [memberId, env.PAYME_OFFICE_TIMEZONE],
   );
@@ -611,7 +663,7 @@ export async function getOpenMonthSummary(
 ): Promise<OpenMonthSummary> {
   const result = await pool.query<OpenMonthSummary>(
     `
-      with monthly as (
+      with live_open as (
         select
           e.actor_member_id as debtor,
           b.buyer_member_id as creditor,
@@ -621,22 +673,39 @@ export async function getOpenMonthSummary(
         left join lateral (
           select sm.settled_through
           from app_live_settlement_marker sm
-          where sm.month_key = to_char(now() at time zone $2, 'YYYY-MM')
+          where sm.month_key = to_char(e.occurred_at at time zone $2, 'YYYY-MM')
             and sm.debtor_member_id = e.actor_member_id
             and sm.creditor_member_id = b.buyer_member_id
           order by sm.settled_through desc
           limit 1
         ) paid on true
-        where to_char(e.occurred_at at time zone $2, 'YYYY-MM') = to_char(now() at time zone $2, 'YYYY-MM')
-          and e.actor_member_id <> b.buyer_member_id
+        where e.actor_member_id <> b.buyer_member_id
           and e.occurred_at > coalesce(paid.settled_through, '-infinity'::timestamptz)
+          and not exists (
+            select 1
+            from app_settlement_period sp
+            where sp.month_key = to_char(e.occurred_at at time zone $2, 'YYYY-MM')
+          )
         group by e.actor_member_id, b.buyer_member_id
         having sum(e.delta_units * b.unit_price_minor) > 0
+      ),
+      closed_open as (
+        select
+          sl.debtor_member_id as debtor,
+          sl.creditor_member_id as creditor,
+          sl.amount_minor as amount
+        from app_settlement_line sl
+        where sl.status = 'open'
+      ),
+      open_items as (
+        select * from live_open
+        union all
+        select * from closed_open
       )
       select
         coalesce(sum(case when debtor = $1 then amount else 0 end), 0)::int as owed_minor,
         coalesce(sum(case when creditor = $1 then amount else 0 end), 0)::int as owed_to_me_minor
-      from monthly
+      from open_items
     `,
     [memberId, env.PAYME_OFFICE_TIMEZONE],
   );

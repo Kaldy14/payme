@@ -42,7 +42,7 @@ export default async function Home() {
             Čau, <span className="display-italic text-ember">{firstName}</span>!
           </h1>
           <p className="rubric mt-2 text-[0.98rem] sm:text-[1.08rem]">
-            Tady je tvůj otevřený účet za tenhle měsíc.
+            Tady je tvůj otevřený účet.
           </p>
         </div>
 

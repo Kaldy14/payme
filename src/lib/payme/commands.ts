@@ -1245,7 +1245,46 @@ export async function closeMonth(actor: MemberRecord, monthKey: string) {
   });
 }
 
+type CurrentSettlementPair = {
+  actorMemberId: string;
+  debtorMemberId: string;
+  creditorMemberId: string;
+  missingMessage: string;
+};
+
+type LiveSettlementAggregateRow = SettlementAggregateRow & {
+  month_key: string;
+};
+
+type MarkedSettlementRow = {
+  id: string;
+  amount_minor: number;
+};
+
 export async function markCurrentCreditPaid(actor: MemberRecord, debtorMemberId: string) {
+  return markCurrentSettlementPaid({
+    actorMemberId: actor.id,
+    debtorMemberId,
+    creditorMemberId: actor.id,
+    missingMessage: "Otevřený dluh vůči tobě neexistuje.",
+  });
+}
+
+export async function markCurrentDebtPaid(actor: MemberRecord, creditorMemberId: string) {
+  return markCurrentSettlementPaid({
+    actorMemberId: actor.id,
+    debtorMemberId: actor.id,
+    creditorMemberId,
+    missingMessage: "Otevřený dluh neexistuje.",
+  });
+}
+
+async function markCurrentSettlementPaid({
+  actorMemberId,
+  debtorMemberId,
+  creditorMemberId,
+  missingMessage,
+}: CurrentSettlementPair) {
   return withTransaction(async (client) => {
     const cutoff = firstRow(
       await client.query<{ value: Date }>("select now() as value"),
@@ -1255,129 +1294,134 @@ export async function markCurrentCreditPaid(actor: MemberRecord, debtorMemberId:
       throw new PaymeError(500, "Nepovedlo se načíst čas.");
     }
 
-    const monthKey = firstRow(
-      await client.query<{ value: string }>(
-        `
-          select to_char($1::timestamptz at time zone $2, 'YYYY-MM') as value
-        `,
-        [cutoff.value, env.PAYME_OFFICE_TIMEZONE],
-      ),
-    );
-
-    if (!monthKey) {
-      throw new PaymeError(500, "Nepovedlo se načíst měsíc.");
-    }
-
-    const aggregate = firstRow(
-      await client.query<SettlementAggregateRow>(
-        `
-          select
-            e.actor_member_id as debtor_member_id,
-            b.buyer_member_id as creditor_member_id,
-            sum(e.delta_units * b.unit_price_minor)::int as amount_minor,
-            creditor.display_name as creditor_name_snapshot,
-            pa.account_prefix as creditor_account_prefix_snapshot,
-            pa.account_number as creditor_account_number_snapshot,
-            pa.bank_code as creditor_bank_code_snapshot
-          from app_take_event e
-          join app_batch b on b.id = e.batch_id
-          join app_member creditor on creditor.id = b.buyer_member_id
-          join app_member_payout_account pa on pa.member_id = creditor.id
-          left join lateral (
-            select sm.settled_through
-            from app_live_settlement_marker sm
-            where sm.month_key = $3
-              and sm.debtor_member_id = e.actor_member_id
-              and sm.creditor_member_id = b.buyer_member_id
-            order by sm.settled_through desc
-            limit 1
-          ) paid on true
-          where e.actor_member_id = $1
-            and b.buyer_member_id = $2
-            and e.actor_member_id <> b.buyer_member_id
-            and to_char(e.occurred_at at time zone $4, 'YYYY-MM') = $3
-            and e.occurred_at <= $5
-            and e.occurred_at > coalesce(paid.settled_through, '-infinity'::timestamptz)
-          group by
-            e.actor_member_id,
-            b.buyer_member_id,
-            creditor.display_name,
-            pa.account_prefix,
-            pa.account_number,
-            pa.bank_code
-          having sum(e.delta_units * b.unit_price_minor) > 0
-        `,
-        [
-          debtorMemberId,
-          actor.id,
-          monthKey.value,
-          env.PAYME_OFFICE_TIMEZONE,
-          cutoff.value,
-        ],
-      ),
-    );
-
-    if (!aggregate) {
-      const debtor = firstRow(
-        await client.query<{ id: string }>(
-          "select id from app_member where id = $1 limit 1",
-          [debtorMemberId],
-        ),
-      );
-
-      if (!debtor) {
-        throw new PaymeError(404, "Tenhle člověk neexistuje.");
-      }
-
-      throw new PaymeError(404, "Otevřený dluh vůči tobě neexistuje.");
-    }
-
-    const message = `${env.PAYME_APP_NAME} ${monthKey.value}`;
-    const qrPayload = buildSpdPayload({
-      accountPrefix: aggregate.creditor_account_prefix_snapshot,
-      accountNumber: aggregate.creditor_account_number_snapshot,
-      bankCode: aggregate.creditor_bank_code_snapshot,
-      amountMinor: aggregate.amount_minor,
-      message,
-    });
-    const id = createId("livepay");
-
-    await client.query(
+    const markedSettlements = await client.query<MarkedSettlementRow>(
       `
-        insert into app_live_settlement_marker (
-          id,
-          month_key,
-          debtor_member_id,
-          creditor_member_id,
-          amount_minor,
-          settled_through,
-          creditor_name_snapshot,
-          creditor_account_prefix_snapshot,
-          creditor_account_number_snapshot,
-          creditor_bank_code_snapshot,
-          payment_message,
-          qr_payload
-        ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        update app_settlement_line
+        set status = 'paid',
+            paid_marked_at = $4,
+            paid_by_member_id = $3
+        where debtor_member_id = $1
+          and creditor_member_id = $2
+          and status = 'open'
+        returning id, amount_minor
+      `,
+      [debtorMemberId, creditorMemberId, actorMemberId, cutoff.value],
+    );
+
+    const aggregates = await client.query<LiveSettlementAggregateRow>(
+      `
+        select
+          to_char(e.occurred_at at time zone $3, 'YYYY-MM') as month_key,
+          e.actor_member_id as debtor_member_id,
+          b.buyer_member_id as creditor_member_id,
+          sum(e.delta_units * b.unit_price_minor)::int as amount_minor,
+          creditor.display_name as creditor_name_snapshot,
+          pa.account_prefix as creditor_account_prefix_snapshot,
+          pa.account_number as creditor_account_number_snapshot,
+          pa.bank_code as creditor_bank_code_snapshot
+        from app_take_event e
+        join app_batch b on b.id = e.batch_id
+        join app_member creditor on creditor.id = b.buyer_member_id
+        join app_member_payout_account pa on pa.member_id = creditor.id
+        left join lateral (
+          select sm.settled_through
+          from app_live_settlement_marker sm
+          where sm.month_key = to_char(e.occurred_at at time zone $3, 'YYYY-MM')
+            and sm.debtor_member_id = e.actor_member_id
+            and sm.creditor_member_id = b.buyer_member_id
+          order by sm.settled_through desc
+          limit 1
+        ) paid on true
+        where e.actor_member_id = $1
+          and b.buyer_member_id = $2
+          and e.actor_member_id <> b.buyer_member_id
+          and e.occurred_at <= $4
+          and e.occurred_at > coalesce(paid.settled_through, '-infinity'::timestamptz)
+          and not exists (
+            select 1
+            from app_settlement_period sp
+            where sp.month_key = to_char(e.occurred_at at time zone $3, 'YYYY-MM')
+          )
+        group by
+          to_char(e.occurred_at at time zone $3, 'YYYY-MM'),
+          e.actor_member_id,
+          b.buyer_member_id,
+          creditor.display_name,
+          pa.account_prefix,
+          pa.account_number,
+          pa.bank_code
+        having sum(e.delta_units * b.unit_price_minor) > 0
+        order by month_key asc
       `,
       [
-        id,
-        monthKey.value,
         debtorMemberId,
-        actor.id,
-        aggregate.amount_minor,
+        creditorMemberId,
+        env.PAYME_OFFICE_TIMEZONE,
         cutoff.value,
-        aggregate.creditor_name_snapshot,
-        aggregate.creditor_account_prefix_snapshot,
-        aggregate.creditor_account_number_snapshot,
-        aggregate.creditor_bank_code_snapshot,
-        message,
-        qrPayload,
       ],
     );
 
+    if (markedSettlements.rowCount === 0 && aggregates.rowCount === 0) {
+      throw new PaymeError(404, missingMessage);
+    }
+
+    const ids = markedSettlements.rows.map((row) => row.id);
+    let amountMinor = markedSettlements.rows.reduce(
+      (total, row) => total + row.amount_minor,
+      0,
+    );
+
+    for (const aggregate of aggregates.rows) {
+      const message = `${env.PAYME_APP_NAME} ${aggregate.month_key}`;
+      const qrPayload = buildSpdPayload({
+        accountPrefix: aggregate.creditor_account_prefix_snapshot,
+        accountNumber: aggregate.creditor_account_number_snapshot,
+        bankCode: aggregate.creditor_bank_code_snapshot,
+        amountMinor: aggregate.amount_minor,
+        message,
+      });
+      const id = createId("livepay");
+
+      await client.query(
+        `
+          insert into app_live_settlement_marker (
+            id,
+            month_key,
+            debtor_member_id,
+            creditor_member_id,
+            amount_minor,
+            settled_through,
+            creditor_name_snapshot,
+            creditor_account_prefix_snapshot,
+            creditor_account_number_snapshot,
+            creditor_bank_code_snapshot,
+            payment_message,
+            qr_payload
+          ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        `,
+        [
+          id,
+          aggregate.month_key,
+          aggregate.debtor_member_id,
+          aggregate.creditor_member_id,
+          aggregate.amount_minor,
+          cutoff.value,
+          aggregate.creditor_name_snapshot,
+          aggregate.creditor_account_prefix_snapshot,
+          aggregate.creditor_account_number_snapshot,
+          aggregate.creditor_bank_code_snapshot,
+          message,
+          qrPayload,
+        ],
+      );
+
+      ids.push(id);
+      amountMinor += aggregate.amount_minor;
+    }
+
     return {
-      id,
-      amountMinor: aggregate.amount_minor,
+      ids,
+      amountMinor,
     };
   });
 }
@@ -1390,7 +1434,7 @@ export async function markSettlementPaid(actor: MemberRecord, settlementId: stri
           paid_marked_at = now(),
           paid_by_member_id = $2
       where id = $1
-        and creditor_member_id = $2
+        and (creditor_member_id = $2 or debtor_member_id = $2)
         and status = 'open'
       returning id
     `,
@@ -1398,7 +1442,7 @@ export async function markSettlementPaid(actor: MemberRecord, settlementId: stri
   );
 
   if (result.rowCount === 0) {
-    throw new PaymeError(404, "Otevřený dluh vůči tobě neexistuje.");
+    throw new PaymeError(404, "Otevřený dluh neexistuje.");
   }
 
   return {

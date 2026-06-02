@@ -3,12 +3,50 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-import { markCurrentCreditPaidAction } from "@/lib/actions";
+import {
+  markCurrentCreditPaidAction,
+  markCurrentDebtPaidAction,
+} from "@/lib/actions";
 
 export function SettleCurrentCreditButton({
   debtorMemberId,
 }: {
   debtorMemberId: string;
+}) {
+  return (
+    <SettleButton
+      action={() => markCurrentCreditPaidAction(debtorMemberId)}
+      label="dorazilo - vyrovnáno"
+      pendingLabel="označuji..."
+    />
+  );
+}
+
+export function SettleCurrentDebtButton({
+  creditorMemberId,
+}: {
+  creditorMemberId: string;
+}) {
+  return (
+    <SettleButton
+      action={() => markCurrentDebtPaidAction(creditorMemberId)}
+      label="mám zaplaceno"
+      pendingLabel="označuji..."
+      className="btn btn-ember btn-sm w-full sm:w-auto"
+    />
+  );
+}
+
+function SettleButton({
+  action,
+  label,
+  pendingLabel,
+  className = "btn btn-sm",
+}: {
+  action: () => Promise<unknown>;
+  label: string;
+  pendingLabel: string;
+  className?: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -23,7 +61,7 @@ export function SettleCurrentCreditButton({
           setError(null);
           startTransition(async () => {
             try {
-              await markCurrentCreditPaidAction(debtorMemberId);
+              await action();
               router.refresh();
             } catch (err) {
               setError(
@@ -32,9 +70,9 @@ export function SettleCurrentCreditButton({
             }
           });
         }}
-        className="btn btn-sm"
+        className={className}
       >
-        {pending ? "označuji..." : "dorazilo - vyrovnáno"}
+        {pending ? pendingLabel : label}
       </button>
       {error && (
         <div className="mt-2 text-[0.82rem] text-stamp-red break-words">

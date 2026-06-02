@@ -39,6 +39,7 @@ Security hardening landed after the deployment review:
 - first-user admin bootstrap is disabled; fresh deployments need a pre-seeded member/invite
 - production env validation fails closed for auth secret, HTTPS app URLs, Resend email mode/key/sender, and passkey RP ID
 - hosted Postgres uses the Supabase/Vercel SSL override unless `DATABASE_SSL_CA_CERT` / `POSTGRES_CA_CERT` provides a CA bundle that verifies cleanly
+- Supabase's generated Data API is locked down by `db/migrations/003_lock_down_supabase_data_api.sql`: public app/auth tables have RLS enabled and `anon`/`authenticated` table grants revoked
 - custom app POST routes and server actions reject cross-origin mutation requests
 - `next.config.ts` sets CSP, HSTS, frame, content-type, referrer, and permissions headers
 - audited runtime dependencies were patched; `pnpm audit --prod` is clean
@@ -50,10 +51,10 @@ Landed in the UI pass (iteration 2):
 - `/` — signed-in ledger (balance cards dlužíš / dluží ti, drink list, tvé odběry) and a compact signed-out hero
 - `/sign-in` — magic link + passkey with sanitized `?next=` and `?from=nfc` support
 - `/t/[tagToken]` — NFC take flow: bare tag URLs auto-record +1, show a live two-minute undo button for wrong-tag taps, and keep +1/+2/+3 manual buttons behind `?mode=manual`
-- `/shelves` — stock-style overview for each drink, active-batch takers, who stocked it, live per-person drink debts with QR payment + creditor confirmation, and "zapiš nákup" forms
+- `/shelves` — stock-style overview for each drink, active-batch takers, who stocked it, live per-person drink debts with shareable QR payment images, debtor-side paid marking, creditor confirmation, and "zapiš nákup" forms
 - `/account` — český účet editor + passkey enrollment
 - `/admin` — Pití a štítky (drink list with NFC URL + re-mint per drink + add-drink form), Dávky (recent stockups with admin move-to-drink correction), and Lidé (members + invites)
-- `/report/[yyyy-mm]` — Dlužíš / Dluží ti columns with Czech SPD QR images, creditor-side mark-paid, admin close-month with confirm
+- `/report/[yyyy-mm]` — Dlužíš / Dluží ti columns with shareable Czech SPD QR images, debtor-side and creditor-side mark-paid, admin close-month with confirm
 - server actions in `src/lib/actions.ts` wrap `src/lib/payme/commands.ts` for all non-NFC mutations, enforce same-origin mutation checks, and `setupShelfAction` adds a new drink + hidden stock slot + tag
 - UI data helpers in `src/lib/payme/ui-queries.ts`
 - formatters in `src/lib/format.ts` use `cs-CZ` throughout
@@ -81,7 +82,7 @@ Main implementation files:
 - API routes: `/Users/kaldy/Data/Repos/payme/src/app/api`
 - UI shell: `/Users/kaldy/Data/Repos/payme/src/components/app-shell.tsx`
 - design tokens: `/Users/kaldy/Data/Repos/payme/src/app/globals.css`
-- migrations: `/Users/kaldy/Data/Repos/payme/db/migrations/001_payme_domain.sql`, `/Users/kaldy/Data/Repos/payme/db/migrations/002_live_settlement_markers.sql`
+- migrations: `/Users/kaldy/Data/Repos/payme/db/migrations/001_payme_domain.sql`, `/Users/kaldy/Data/Repos/payme/db/migrations/002_live_settlement_markers.sql`, `/Users/kaldy/Data/Repos/payme/db/migrations/003_lock_down_supabase_data_api.sql`
 
 ## What is left to do
 

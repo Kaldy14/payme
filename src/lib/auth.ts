@@ -12,10 +12,17 @@ import {
   syncMemberAfterAuthUserCreate,
 } from "@/lib/payme/commands";
 
+const dayInSeconds = 60 * 60 * 24;
+const maxCookieAgeInSeconds = dayInSeconds * 400;
+
 export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BETTER_AUTH_URL,
   trustedOrigins: Array.from(new Set([env.BETTER_AUTH_URL, env.PAYME_BASE_URL])),
+  session: {
+    expiresIn: maxCookieAgeInSeconds,
+    updateAge: dayInSeconds * 30,
+  },
   emailAndPassword: {
     enabled: false,
   },

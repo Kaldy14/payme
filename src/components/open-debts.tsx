@@ -1,7 +1,11 @@
 import { formatCzk } from "@/lib/format";
 import { buildCzechAccount } from "@/lib/payme/payments";
 import type { OpenCreditPartner, OpenDebtPartner } from "@/lib/payme/ui-queries";
-import { SettleCurrentCreditButton } from "@/components/settle-current-credit-button";
+import { PaymentQrBlock } from "@/components/payment-qr-block";
+import {
+  SettleCurrentCreditButton,
+  SettleCurrentDebtButton,
+} from "@/components/settle-current-credit-button";
 
 export function OpenDebts({ debts }: { debts: OpenDebtPartner[] }) {
   return (
@@ -93,17 +97,17 @@ function OpenDebtCard({ debt }: { debt: OpenDebtPartner }) {
       </ul>
 
       {debt.qr_code_data_url ? (
-        <div className="mt-4 flex justify-center sm:justify-end">
-          <div className="flex flex-col items-center gap-1 self-center sm:self-start">
-            <div className="paper-card-flat p-2 border-ink">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={debt.qr_code_data_url}
-                alt={`QR platba - ${debt.payment_message ?? debt.creditor_name}`}
-                className="h-[140px] w-[140px] sm:h-[170px] sm:w-[170px] block"
-              />
-            </div>
-            <div className="eyebrow text-ink-faint">sken - SPD 1.0</div>
+        <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <PaymentQrBlock
+            dataUrl={debt.qr_code_data_url}
+            message={debt.payment_message ?? debt.creditor_name}
+            className="self-center sm:order-2 sm:self-start"
+          />
+          <div className="flex w-full flex-col gap-2 sm:order-1 sm:w-auto">
+            <SettleCurrentDebtButton creditorMemberId={debt.creditor_member_id} />
+            <span className="eyebrow text-ink-faint">
+              označ po odeslání platby
+            </span>
           </div>
         </div>
       ) : (

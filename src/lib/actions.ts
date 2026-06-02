@@ -14,6 +14,7 @@ import {
   createDrinkWithTag,
   createInvite,
   createTag,
+  markCurrentDebtPaid,
   markCurrentCreditPaid,
   markSettlementPaid,
   updateDrink,
@@ -336,6 +337,14 @@ export async function markSettlementPaidAction(
 export async function markCurrentCreditPaidAction(debtorMemberId: string) {
   const member = await requireMemberFromCookies();
   await markCurrentCreditPaid(member, debtorMemberId);
+  revalidatePath("/shelves");
+  revalidatePath("/");
+  return { ok: true };
+}
+
+export async function markCurrentDebtPaidAction(creditorMemberId: string) {
+  const member = await requireMemberFromCookies();
+  await markCurrentDebtPaid(member, creditorMemberId);
   revalidatePath("/shelves");
   revalidatePath("/");
   return { ok: true };

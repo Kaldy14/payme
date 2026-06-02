@@ -14,6 +14,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Never let local `.env*` files ride along in Vercel CLI deployments; keep `.vercelignore` blocking them so local dev values do not override production envs.
 - Treat `POSTGRES_URL` from Vercel/Supabase as a valid runtime DB source; do not require a duplicated `DATABASE_URL` unless an explicit override is needed.
 - Keep the non-local Postgres SSL override in `src/lib/db/pool.ts` when using Supabase/Vercel (`sslmode=no-verify` plus `rejectUnauthorized: false`) unless `DATABASE_SSL_CA_CERT` or `POSTGRES_CA_CERT` is configured with a CA chain that verifies cleanly.
+- Keep Supabase's generated Data API locked down for this app: public tables must have RLS enabled and `anon`/`authenticated` table grants revoked unless a deliberate server-backed API replacement is designed.
 - Treat money and stock changes as transactional server-side commands. Do not move write logic into the browser.
 - Use app-layer auth with `better-auth`; the client must not write directly to Postgres or Supabase tables.
 - Keep the product intentionally lightweight. Prefer the smallest implementation that preserves ledger correctness.
@@ -23,6 +24,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - UI aesthetic is "receipt / ledger paper": cream background, Fraunces display, JetBrains Mono for tabular numbers, hot ember accent. Keep new UI visually consistent with the tokens in `src/app/globals.css`.
 - Mutations go through server actions in `src/lib/actions.ts` (which wrap `src/lib/payme/commands.ts`), never direct client-side SQL. The only client-side mutation path is `POST /api/takes` and `POST /api/takes/:id/undo` from the NFC take screen (both already authorised server-side).
 - When touching settlement or report UI, re-check the real paid/open states in `/report/[yyyy-mm]`; summary cards must not imply an open debt once all lines are paid.
+- Keep QR payment blocks shareable as PNG images through the browser share sheet where supported, with a usable fallback for browsers that cannot share files.
+- Keep both debtor-side "mám zaplaceno" and creditor-side confirmation flows server-backed; paid/open state must never be a client-only flag.
 - Live open-month settlements use paid-through markers, not negative take events. Keep month-close debt aggregation aligned so already-settled drinks are not charged again.
 - UI is mobile-first (iPhone Safari). Keep headings and cards sized for ~390px viewports and stack multi-column grids on base widths, opening up only at `sm:` and above.
 - UI is Czech-only. All member-facing copy (including `PaymeError.message` from `src/lib/payme/commands.ts` and `src/lib/payme/authz.ts`) stays in Czech, using informal singular ("ty") — it's a friends-only group. Keep error strings short and human.

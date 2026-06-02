@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { PageFrame } from "@/components/app-shell";
+import { PaymentQrBlock } from "@/components/payment-qr-block";
 import { formatCzk, formatDateTime, formatMonthKey } from "@/lib/format";
 import { buildCzechAccount } from "@/lib/payme/payments";
 import { getMonthlyReport } from "@/lib/payme/queries";
@@ -311,11 +312,24 @@ function SettlementCard({
         )}
 
         {isDebt && !isPaid && (
-          <div className="flex justify-center sm:justify-end">
-            <QrBlock
+          <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <PaymentQrBlock
               dataUrl={line.qr_code_data_url}
               message={line.payment_message}
+              className="self-center sm:order-2 sm:self-start"
             />
+            <div className="flex w-full flex-col gap-2 sm:order-1 sm:w-auto">
+              <MarkPaidButton
+                settlementId={line.id}
+                monthKey={monthKey}
+                label="mám zaplaceno"
+                pendingLabel="označuji..."
+                className="btn btn-ember btn-sm w-full sm:w-auto"
+              />
+              <span className="eyebrow text-ink-faint">
+                označ po odeslání platby
+              </span>
+            </div>
           </div>
         )}
 
@@ -326,22 +340,6 @@ function SettlementCard({
         )}
       </div>
     </li>
-  );
-}
-
-function QrBlock({ dataUrl, message }: { dataUrl: string; message: string }) {
-  return (
-    <div className="flex flex-col items-center gap-1 self-center sm:self-start">
-      <div className="paper-card-flat p-2 border-ink">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={dataUrl}
-          alt={`QR platba — ${message}`}
-          className="h-[140px] w-[140px] sm:h-[170px] sm:w-[170px] block"
-        />
-      </div>
-      <div className="eyebrow text-ink-faint">sken · SPD 1.0</div>
-    </div>
   );
 }
 

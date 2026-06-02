@@ -26,7 +26,7 @@ The repository currently includes:
 - SQL domain migrations
 - transactional backend commands and API routes
 - mobile-first UI for sign-in, take flow, admin setup, shelves, account, and monthly reports
-- Czech QR Platba payload and QR rendering
+- Czech QR Platba payload, QR rendering, and native QR image sharing
 - project plan and architecture docs
 
 The app has been smoke-tested locally against PostgreSQL for:
@@ -38,7 +38,7 @@ The app has been smoke-tested locally against PostgreSQL for:
 - NFC take + undo
 - month close
 - report QR rendering
-- mark-paid flow
+- debtor-side and creditor-side mark-paid flow
 
 ## Deployment
 
@@ -82,6 +82,8 @@ GitHub Secrets are only the right place if you later add a GitHub Actions workfl
 Production fails closed if required auth, email, passkey, or database values are missing. First-user admin bootstrap is disabled; create members through existing admin invites or database seeding before exposing a fresh deployment.
 
 Supabase/Vercel Postgres currently needs the project SSL override (`sslmode=no-verify`, `rejectUnauthorized: false`) because the hosted chain does not verify cleanly in Node. Add `DATABASE_SSL_CA_CERT` or `POSTGRES_CA_CERT` to move the pool back to verified TLS.
+
+This app does not use Supabase's generated Data API for table access. Keep `db/migrations/003_lock_down_supabase_data_api.sql` applied so public app/auth tables remain RLS-enabled and unavailable to `anon` / `authenticated` API roles.
 
 ## Local setup
 
