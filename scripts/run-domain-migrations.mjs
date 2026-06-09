@@ -17,9 +17,35 @@ if (!databaseUrl) {
   throw new Error("DATABASE_URL or POSTGRES_URL is required to run domain migrations.");
 }
 
-const pool = new Pool({
-  connectionString: databaseUrl,
-});
+function getPoolOptions() {
+  const url = new URL(databaseUrl);
+  const isLocalHost = ["127.0.0.1", "localhost"].includes(url.hostname);
+  const connectionUrl = new URL(databaseUrl);
+
+  if (isLocalHost) {
+    return {
+      connectionString: connectionUrl.toString(),
+      ssl: undefined,
+    };
+  }
+
+  const ca = (process.env.DATABASE_SSL_CA_CERT ?? process.env.POSTGRES_CA_CERT)
+    ?.replaceAll("\\n", "\n");
+  const shouldVerifyRemoteSsl = Boolean(ca);
+  connectionUrl.searchParams.set(
+    "sslmode",
+    shouldVerifyRemoteSsl ? "verify-full" : "no-verify",
+  );
+
+  return {
+    connectionString: connectionUrl.toString(),
+    ssl: shouldVerifyRemoteSsl
+      ? { rejectUnauthorized: true, ca }
+      : { rejectUnauthorized: false },
+  };
+}
+
+const pool = new Pool(getPoolOptions());
 
 async function ensureMigrationTable(client) {
   await client.query(`
