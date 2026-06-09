@@ -1,4 +1,5 @@
 import { firstRow, pool } from "@/lib/db/pool";
+import { env } from "@/lib/env";
 import { buildSpdPayload, buildSpdQrDataUrl } from "@/lib/payme/payments";
 
 export async function getTagSummary(tagToken: string) {
@@ -74,6 +75,7 @@ export async function getMonthlyReport(memberId: string, monthKey: string) {
     amount_minor: number;
     status: "open" | "paid";
     paid_marked_at: Date | null;
+    paid_source: "manual" | "bank_csv" | null;
     debtor_member_id: string;
     creditor_member_id: string;
     creditor_name_snapshot: string;
@@ -81,6 +83,8 @@ export async function getMonthlyReport(memberId: string, monthKey: string) {
     creditor_account_number_snapshot: string;
     creditor_bank_code_snapshot: string;
     payment_message: string;
+    payment_code: string | null;
+    variable_symbol: string | null;
     qr_payload: string;
   }>(
     `
@@ -101,6 +105,7 @@ export async function getMonthlyReport(memberId: string, monthKey: string) {
         bankCode: line.creditor_bank_code_snapshot,
         amountMinor: line.amount_minor,
         message: line.payment_message,
+        variableSymbol: line.variable_symbol ?? env.PAYME_BANK_VARIABLE_SYMBOL,
       });
 
       return {

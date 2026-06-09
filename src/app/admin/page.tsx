@@ -8,12 +8,15 @@ import { getSessionMember } from "@/lib/payme/session";
 import {
   listInvites,
   listBatches,
+  listBankCsvImports,
+  listBankTransactionIssues,
   listMembers,
   listShelfOverviews,
   listShelfStockOverviews,
 } from "@/lib/payme/ui-queries";
 import {
   AddDrinkForm,
+  BankImportPanel,
   BatchTable,
   DrinkTagTable,
   InviteForm,
@@ -44,12 +47,22 @@ export default async function AdminPage() {
     );
   }
 
-  const [shelves, stock, batches, invites, members] = await Promise.all([
+  const [
+    shelves,
+    stock,
+    batches,
+    invites,
+    members,
+    bankImports,
+    bankIssues,
+  ] = await Promise.all([
     listShelfOverviews(),
     listShelfStockOverviews(),
     listBatches(),
     listInvites(),
     listMembers(),
+    listBankCsvImports(),
+    listBankTransactionIssues(),
   ]);
 
   const pendingInviteCount = invites.filter((invite) => !invite.accepted_at).length;
@@ -99,6 +112,19 @@ export default async function AdminPage() {
           </p>
           <div className="mt-3">
             <BatchTable batches={batches} shelves={shelves} />
+          </div>
+        </section>
+
+        {/* --- bank imports --- */}
+        <section className="mt-10">
+          <div className="flex items-baseline justify-between border-b border-ink pb-2">
+            <h2 className="display text-[1.4rem] sm:text-[1.6rem]">Bankovní CSV</h2>
+            <span className="eyebrow text-ink-faint">
+              {bankIssues.length > 0 ? `${bankIssues.length} k řešení` : "čisté"}
+            </span>
+          </div>
+          <div className="mt-3">
+            <BankImportPanel imports={bankImports} issues={bankIssues} />
           </div>
         </section>
 

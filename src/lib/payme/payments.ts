@@ -140,17 +140,26 @@ export function buildSpdPayload(input: {
   iban?: string | null;
   amountMinor: number;
   message: string;
+  variableSymbol?: string | null;
 }) {
   const amount = (input.amountMinor / 100).toFixed(2);
   const acc = buildSpdAccount(input);
-
-  return [
+  const fields = [
     "SPD*1.0",
     `ACC:${escapeField(acc)}`,
     `AM:${amount}`,
     "CC:CZK",
-    `MSG:${escapeField(input.message)}`,
-  ].join("*");
+  ];
+
+  if (input.variableSymbol) {
+    fields.push(
+      `X-VS:${normalizeDigits(input.variableSymbol, "Variabilní symbol", 10)}`,
+    );
+  }
+
+  fields.push(`MSG:${escapeField(input.message)}`);
+
+  return fields.join("*");
 }
 
 export async function buildSpdQrDataUrl(payload: string) {

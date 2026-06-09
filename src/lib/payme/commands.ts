@@ -4,7 +4,12 @@ import { firstRow, pool, withTransaction } from "@/lib/db/pool";
 import { env } from "@/lib/env";
 import type { MemberRecord } from "@/lib/payme/authz";
 import { PaymeError } from "@/lib/payme/errors";
-import { createId, createTagToken, normalizeEmail } from "@/lib/payme/ids";
+import {
+  createId,
+  createPaymentCode,
+  createTagToken,
+  normalizeEmail,
+} from "@/lib/payme/ids";
 import { buildSpdAccount, buildSpdPayload } from "@/lib/payme/payments";
 
 type CreateInviteInput = {
@@ -74,6 +79,33 @@ type SettlementAggregateRow = {
   creditor_account_number_snapshot: string;
   creditor_bank_code_snapshot: string;
 };
+
+function buildSettlementPaymentMessage(paymentCode: string, monthKey: string) {
+  return `${paymentCode} ${env.PAYME_APP_NAME} ${monthKey}`;
+}
+
+async function createUniquePaymentCode(client: PoolClient | typeof pool) {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const paymentCode = createPaymentCode();
+    const existing = firstRow(
+      await client.query<{ id: string }>(
+        `
+          select id
+          from app_settlement_line
+          where payment_code = $1
+          limit 1
+        `,
+        [paymentCode],
+      ),
+    );
+
+    if (!existing) {
+      return paymentCode;
+    }
+  }
+
+  throw new PaymeError(500, "Nepovedlo se vytvořit kód platby.");
+}
 
 function nowIso(value?: string) {
   const date = value ? new Date(value) : new Date();
@@ -1195,13 +1227,16 @@ export async function closeMonth(actor: MemberRecord, monthKey: string) {
     );
 
     for (const row of aggregates.rows) {
-      const message = `${env.PAYME_APP_NAME} ${monthKey}`;
+      const paymentCode = await createUniquePaymentCode(client);
+      const variableSymbol = env.PAYME_BANK_VARIABLE_SYMBOL;
+      const message = buildSettlementPaymentMessage(paymentCode, monthKey);
       const qrPayload = buildSpdPayload({
         accountPrefix: row.creditor_account_prefix_snapshot,
         accountNumber: row.creditor_account_number_snapshot,
         bankCode: row.creditor_bank_code_snapshot,
         amountMinor: row.amount_minor,
         message,
+        variableSymbol,
       });
 
       await client.query(
@@ -1218,8 +1253,10 @@ export async function closeMonth(actor: MemberRecord, monthKey: string) {
             creditor_account_number_snapshot,
             creditor_bank_code_snapshot,
             payment_message,
-            qr_payload
-          ) values ($1, $2, $3, $4, $5, 'open', $6, $7, $8, $9, $10, $11)
+            qr_payload,
+            payment_code,
+            variable_symbol
+          ) values ($1, $2, $3, $4, $5, 'open', $6, $7, $8, $9, $10, $11, $12, $13)
         `,
         [
           createId("settlement"),
@@ -1233,6 +1270,8 @@ export async function closeMonth(actor: MemberRecord, monthKey: string) {
           row.creditor_bank_code_snapshot,
           message,
           qrPayload,
+          paymentCode,
+          variableSymbol,
         ],
       );
     }
@@ -1299,7 +1338,8 @@ async function markCurrentSettlementPaid({
         update app_settlement_line
         set status = 'paid',
             paid_marked_at = $4,
-            paid_by_member_id = $3
+            paid_by_member_id = $3,
+            paid_source = 'manual'
         where debtor_member_id = $1
           and creditor_member_id = $2
           and status = 'open'
@@ -1379,6 +1419,7 @@ async function markCurrentSettlementPaid({
         bankCode: aggregate.creditor_bank_code_snapshot,
         amountMinor: aggregate.amount_minor,
         message,
+        variableSymbol: env.PAYME_BANK_VARIABLE_SYMBOL,
       });
       const id = createId("livepay");
 
@@ -1432,7 +1473,8 @@ export async function markSettlementPaid(actor: MemberRecord, settlementId: stri
       update app_settlement_line
       set status = 'paid',
           paid_marked_at = now(),
-          paid_by_member_id = $2
+          paid_by_member_id = $2,
+          paid_source = 'manual'
       where id = $1
         and (creditor_member_id = $2 or debtor_member_id = $2)
         and status = 'open'

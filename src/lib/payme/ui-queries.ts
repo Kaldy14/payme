@@ -408,6 +408,7 @@ export async function listOpenDebtsByProduct(
         bankCode: partner.bank_code,
         amountMinor: partner.amount_minor,
         message: paymentMessage,
+        variableSymbol: env.PAYME_BANK_VARIABLE_SYMBOL,
       });
 
       return {
@@ -587,6 +588,84 @@ export async function listMembers(): Promise<MemberRow[]> {
   return result.rows;
 }
 
+export type BankImportOverview = {
+  id: string;
+  file_name: string | null;
+  row_count: number;
+  matched: number;
+  duplicates: number;
+  unmatched: number;
+  problem: number;
+  ignored: number;
+  created_at: string;
+  uploaded_by_name: string;
+};
+
+export async function listBankCsvImports(limit = 6): Promise<BankImportOverview[]> {
+  const result = await pool.query<BankImportOverview>(
+    `
+      select
+        bi.id,
+        bi.file_name,
+        bi.row_count,
+        coalesce((bi.summary->>'matched')::int, 0) as matched,
+        coalesce((bi.summary->>'duplicates')::int, 0) as duplicates,
+        coalesce((bi.summary->>'unmatched')::int, 0) as unmatched,
+        coalesce((bi.summary->>'problem')::int, 0) as problem,
+        coalesce((bi.summary->>'ignored')::int, 0) as ignored,
+        bi.created_at::text as created_at,
+        uploader.display_name as uploaded_by_name
+      from app_bank_csv_import bi
+      join app_member uploader on uploader.id = bi.uploaded_by_member_id
+      order by bi.created_at desc
+      limit $1
+    `,
+    [limit],
+  );
+  return result.rows;
+}
+
+export type BankTransactionIssueRow = {
+  id: string;
+  match_status: "unmatched" | "problem";
+  problem_code: string | null;
+  booked_at: string | null;
+  amount_minor: number;
+  currency: string;
+  variable_symbol: string | null;
+  payment_code: string | null;
+  message: string | null;
+  counterparty_name: string | null;
+  created_at: string;
+};
+
+export async function listBankTransactionIssues(
+  limit = 20,
+): Promise<BankTransactionIssueRow[]> {
+  const result = await pool.query<BankTransactionIssueRow>(
+    `
+      select
+        id,
+        match_status,
+        problem_code,
+        booked_at::text as booked_at,
+        amount_minor,
+        currency,
+        variable_symbol,
+        payment_code,
+        message,
+        counterparty_name,
+        created_at::text as created_at
+      from app_bank_transaction
+      where match_status in ('unmatched', 'problem')
+      order by created_at desc
+      limit $1
+    `,
+    [limit],
+  );
+  return result.rows;
+}
+
 export type PayoutAccountRow = {
   account_prefix: string | null;
   account_number: string;
@@ -752,6 +831,7 @@ export type MonthlyReportLine = {
   amount_minor: number;
   status: "open" | "paid";
   paid_marked_at: Date | null;
+  paid_source: "manual" | "bank_csv" | null;
   debtor_member_id: string;
   creditor_member_id: string;
   creditor_name_snapshot: string;
@@ -759,6 +839,8 @@ export type MonthlyReportLine = {
   creditor_account_number_snapshot: string;
   creditor_bank_code_snapshot: string;
   payment_message: string;
+  payment_code: string | null;
+  variable_symbol: string | null;
   qr_payload: string;
 };
 

@@ -15,6 +15,7 @@ This app is for a small group of friends/colleagues with iPhones in the Czech Re
 - NFC tags open the app flow per drink
 - the app records who took what from the active batch
 - during the month and at month end, the app shows who owes whom and generates Czech QR payment payloads
+- month-end settlement payments carry a stable bank-message payment code and shared variable symbol so manual bank CSV exports can be matched back to internal payment lines
 
 Important product constraints:
 
@@ -44,6 +45,15 @@ Security hardening landed after the deployment review:
 - `next.config.ts` sets CSP, HSTS, frame, content-type, referrer, and permissions headers
 - audited runtime dependencies were patched; `pnpm audit --prod` is clean
 
+Bank CSV matching landed:
+
+- `db/migrations/004_bank_csv_payment_matching.sql` adds payment codes / shared VS on `app_settlement_line`, plus append-only bank import and transaction audit tables
+- `src/lib/payme/bank-import.ts` parses bank CSV files, stores raw row fields, deduplicates by file hash and transaction fingerprint, and matches materialized settlement lines by VS + payment code + exact amount
+- `/admin` has a Bankovní CSV panel for manual CSV upload, import summaries, and unresolved/problem rows
+- `PAYME_BANK_VARIABLE_SYMBOL` controls the shared VS used in QR payloads and CSV matching; local default is `2026000001`
+- CSV matching currently targets materialized `app_settlement_line` payments. Live open-month balances still use the existing paid-through marker flow.
+- `pnpm run build` runs `pnpm run db:migrate` before `next build`; the migration runner accepts either `DATABASE_URL` or `POSTGRES_URL`.
+
 Landed in the UI pass (iteration 2):
 
 - receipt/ledger design system in `src/app/globals.css` (Fraunces + JetBrains Mono, ember/moss/stamp palette, hairline rules, stamps, perforations; `overflow-x: clip` on `html`/`body` + `min-width: 0` safety)
@@ -53,14 +63,14 @@ Landed in the UI pass (iteration 2):
 - `/t/[tagToken]` — NFC take flow: bare tag URLs auto-record +1, show a live two-minute undo button for wrong-tag taps, and keep +1/+2/+3 manual buttons behind `?mode=manual`
 - `/shelves` — stock-style overview for each drink, active-batch takers, who stocked it, live per-person drink debts with shareable QR payment images, debtor-side paid marking, creditor confirmation, and "zapiš nákup" forms
 - `/account` — český účet editor + passkey enrollment
-- `/admin` — Pití a štítky (drink list with NFC URL + re-mint per drink + add-drink form), Dávky (recent stockups with admin move-to-drink correction), and Lidé (members + invites)
-- `/report/[yyyy-mm]` — Dlužíš / Dluží ti columns with shareable Czech SPD QR images, debtor-side and creditor-side mark-paid, admin close-month with confirm
+- `/admin` — Pití a štítky (drink list with NFC URL + re-mint per drink + add-drink form), Dávky (recent stockups with admin move-to-drink correction), Bankovní CSV upload with idempotent import summary and problem row overview, and Lidé (members + invites)
+- `/report/[yyyy-mm]` — Dlužíš / Dluží ti columns with shareable Czech SPD QR images, shared VS + payment code message for settlement lines, debtor-side and creditor-side mark-paid, admin close-month with confirm
 - server actions in `src/lib/actions.ts` wrap `src/lib/payme/commands.ts` for all non-NFC mutations, enforce same-origin mutation checks, and `setupShelfAction` adds a new drink + hidden stock slot + tag
 - UI data helpers in `src/lib/payme/ui-queries.ts`
 - formatters in `src/lib/format.ts` use `cs-CZ` throughout
 - error messages in `src/lib/payme/commands.ts` + `authz.ts` are Czech so they surface cleanly
 
-Verification: `pnpm run typecheck`, `pnpm run lint`, and `pnpm run build` all pass. Landing, sign-in, and NFC gate spot-checked in Helium at 390px (iPhone 13 viewport) — no horizontal overflow. The signed-in flows (home, take, report, admin, account) still need a live smoke-test with a valid session.
+Verification: `pnpm run typecheck`, `pnpm run lint`, and `pnpm run build` all pass. Landing, sign-in, and NFC gate spot-checked in Helium at 390px (iPhone 13 viewport) — no horizontal overflow. Bank CSV import was e2e-checked locally with agent-browser against `/admin`: a seeded open settlement line matched from CSV, became `paid` with `paid_source=bank_csv`, and re-uploading the same file returned the existing import without duplicate rows. The signed-in flows (home, take, report, admin, account) still need a full live smoke-test with a valid session.
 
 ## Read these first
 
@@ -75,6 +85,7 @@ Main implementation files:
 - auth client: `/Users/kaldy/Data/Repos/payme/src/lib/auth-client.ts`
 - server commands: `/Users/kaldy/Data/Repos/payme/src/lib/payme/commands.ts`
 - server actions (UI forms): `/Users/kaldy/Data/Repos/payme/src/lib/actions.ts`
+- bank CSV import/matching: `/Users/kaldy/Data/Repos/payme/src/lib/payme/bank-import.ts`
 - queries/report helpers: `/Users/kaldy/Data/Repos/payme/src/lib/payme/queries.ts`
 - UI queries: `/Users/kaldy/Data/Repos/payme/src/lib/payme/ui-queries.ts`
 - request schemas: `/Users/kaldy/Data/Repos/payme/src/lib/payme/schemas.ts`
@@ -82,7 +93,7 @@ Main implementation files:
 - API routes: `/Users/kaldy/Data/Repos/payme/src/app/api`
 - UI shell: `/Users/kaldy/Data/Repos/payme/src/components/app-shell.tsx`
 - design tokens: `/Users/kaldy/Data/Repos/payme/src/app/globals.css`
-- migrations: `/Users/kaldy/Data/Repos/payme/db/migrations/001_payme_domain.sql`, `/Users/kaldy/Data/Repos/payme/db/migrations/002_live_settlement_markers.sql`, `/Users/kaldy/Data/Repos/payme/db/migrations/003_lock_down_supabase_data_api.sql`
+- migrations: `/Users/kaldy/Data/Repos/payme/db/migrations/001_payme_domain.sql`, `/Users/kaldy/Data/Repos/payme/db/migrations/002_live_settlement_markers.sql`, `/Users/kaldy/Data/Repos/payme/db/migrations/003_lock_down_supabase_data_api.sql`, `/Users/kaldy/Data/Repos/payme/db/migrations/004_bank_csv_payment_matching.sql`
 
 ## What is left to do
 

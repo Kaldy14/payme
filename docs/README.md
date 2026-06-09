@@ -7,10 +7,12 @@
 - `db/migrations/001_payme_domain.sql`: ChciPlech domain schema
 - `db/migrations/002_live_settlement_markers.sql`: live open-month payment markers
 - `db/migrations/003_lock_down_supabase_data_api.sql`: Supabase Data API lockdown for public app/auth tables
+- `db/migrations/004_bank_csv_payment_matching.sql`: bank CSV imports + settlement payment matching
 - `scripts/run-domain-migrations.mjs`: domain migration runner
 - `src/lib/auth.ts`: Better Auth configuration
 - `src/lib/auth-client.ts`: Better Auth client (magic link + passkey)
 - `src/lib/payme/commands.ts`: transactional stock and settlement commands
+- `src/lib/payme/bank-import.ts`: CSV parsing, idempotent bank transaction storage, settlement matching
 - `src/lib/payme/queries.ts`: shared query helpers (tag summary, monthly report)
 - `src/lib/payme/ui-queries.ts`: listing queries used by the UI pages
 - `src/lib/payme/session.ts`: `getSessionMember()` helper for server components
@@ -32,6 +34,8 @@
 - manual admin month close
 - immutable settlement lines after close
 - live open-month settlements use paid-through markers, so settled drinks are not charged again at month close
+- closed settlement payment lines have a stable payment code in the bank message and a shared variable symbol for CSV export filtering
+- bank CSV imports are idempotent by file hash and transaction fingerprint; raw bank row fields stay stored for audit/debugging
 
 ## UI overview
 
@@ -42,8 +46,8 @@
 - `/t/[tagToken]` – NFC take screen. Bare NFC URLs auto-record +1, show a live two-minute undo button for wrong-tag taps, and keep the manual +1/+2/+3 buttons behind `?mode=manual`.
 - `/shelves` – stock-style overview for each drink, who stocked it, who took from the active batch, open per-person drink debts with shareable Czech SPD QR images, debtor-side "mám zaplaceno", incoming payment confirmations, and batch forms ("zapiš nákup").
 - `/account` – payout account editor (prefix/účet/banka/IBAN) + passkey enrollment.
-- `/admin` – admin-only. Pití a štítky (drink list with NFC URLs + re-mint button per drink + add-drink form), Dávky (recent stockups with an admin-only move-to-drink correction), and Lidé (members + invites).
-- `/report/[yyyy-mm]` – monthly folio. Dlužíš / Dluží ti columns with shareable Czech SPD QR images for unpaid debts; debtor-side and creditor-side mark-paid; admin close button for open months.
+- `/admin` – admin-only. Pití a štítky (drink list with NFC URLs + re-mint button per drink + add-drink form), Dávky (recent stockups with an admin-only move-to-drink correction), Bankovní CSV (manual bank CSV upload, import results, unresolved/problem transactions), and Lidé (members + invites).
+- `/report/[yyyy-mm]` – monthly folio. Dlužíš / Dluží ti columns with shareable Czech SPD QR images for unpaid debts; QR includes shared VS and payment-code message for materialized settlement lines; debtor-side and creditor-side mark-paid; admin close button for open months.
 
 ## Operational notes
 
@@ -54,8 +58,9 @@
 - Supabase/Vercel runtime Postgres currently uses the project SSL override (`sslmode=no-verify`, `rejectUnauthorized: false`) because the hosted chain does not verify cleanly in Node. To move back to verified TLS, put the CA bundle in `DATABASE_SSL_CA_CERT` or `POSTGRES_CA_CERT`; the pool will then use `sslmode=verify-full` with `rejectUnauthorized: true`.
 - Supabase's generated Data API is not part of the app contract. Keep public tables RLS-enabled and keep `anon`/`authenticated` grants revoked; access should go through Next.js server actions/API routes backed by the server Postgres pool.
 - Better Auth tables are managed by `pnpm run auth:migrate`
-- ChciPlech tables are managed by `pnpm run db:migrate`
+- ChciPlech tables are managed by `pnpm run db:migrate`; production builds run this before `next build` so Vercel deploys cannot get ahead of the domain schema
 - Resend email delivery is already implemented in `src/lib/auth.ts`; enable it with `PAYME_MAGIC_LINK_EMAIL_MODE=resend`, `RESEND_API_KEY`, and a valid `PAYME_MAGIC_LINK_FROM`
+- Bank CSV matching uses the shared `PAYME_BANK_VARIABLE_SYMBOL` (default local value: `2026000001`). Configure the production value before relying on bank exports.
 - Production env validation fails closed: no development auth secret, no console magic-link email, no localhost passkey RP ID, and `BETTER_AUTH_URL` / `PAYME_BASE_URL` must be HTTPS on the same origin.
 - Admin invites now send a real invite email through Resend via `src/lib/emails.ts`; pending invites can be bulk-sent from `/admin` without retyping addresses
 - Transactional emails in `src/lib/emails.ts` use conservative table-based inline HTML so they survive stricter mail clients without broken layout
@@ -68,6 +73,6 @@
 - UI mutations prefer server actions (`src/lib/actions.ts`); only the NFC take/undo flow uses the API routes directly because it needs a client-supplied idempotency key
 - `setupShelfAction` creates product + hidden stock slot + tag sequentially (non-atomic — if the slot insert fails, retry; admin can delete the dangling product if needed)
 - adding a drink creates a fresh product + hidden stock slot + tag; existing drinks remain visible and keep their own history/tags
-- live smoke-tested locally against Postgres: existing admin/member invites, payout account save, batch creation, NFC sign-in redirect, take, undo, month close, Czech QR render, and mark-paid flows
+- live smoke-tested locally against Postgres: existing admin/member invites, payout account save, batch creation, NFC sign-in redirect, take, undo, month close, Czech QR render, mark-paid flows, and bank CSV import idempotency
 - report summary cards stay status-neutral (`dlužíš`, `dluží ti`) because the amounts can be fully paid while the historical total for the month remains non-zero
 - command-layer `PaymeError.message` strings are in Czech so they surface cleanly in the UI

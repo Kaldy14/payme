@@ -298,6 +298,11 @@ function SettlementCard({
           <div className="tabular text-[0.76rem] text-ink-soft mt-1 break-all">
             zpráva: {line.payment_message}
           </div>
+          {line.variable_symbol && (
+            <div className="tabular text-[0.76rem] text-ink-soft mt-1">
+              VS: {line.variable_symbol}
+            </div>
+          )}
         </div>
 
         {!isDebt && !isPaid && (

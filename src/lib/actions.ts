@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 
 import { auth } from "@/lib/auth";
 import { sendInviteEmail } from "@/lib/emails";
+import { importBankCsv, type BankImportSummary } from "@/lib/payme/bank-import";
 import { findMemberByAuthUserId } from "@/lib/payme/authz";
 import {
   archiveDrink,
@@ -47,6 +48,9 @@ function requireAdminRole(role: "admin" | "member") {
 }
 
 type ActionState = { error?: string; ok?: string };
+export type BankImportActionState = ActionState & {
+  importSummary?: BankImportSummary;
+};
 
 function toState(err: unknown): ActionState {
   if (err instanceof PaymeError) return { error: err.message };
@@ -309,6 +313,48 @@ export async function updateBatchDrinkAction(
     revalidatePath("/shelves");
     revalidatePath("/");
     return { ok: "Dávka přesunuta." };
+  } catch (err) {
+    return toState(err);
+  }
+}
+
+// --------------- bank CSV import ---------------
+
+export async function importBankCsvAction(
+  _prev: BankImportActionState,
+  formData: FormData,
+): Promise<BankImportActionState> {
+  try {
+    const member = await requireMemberFromCookies();
+    requireAdminRole(member.role);
+    const csvFile = formData.get("csvFile");
+
+    if (!(csvFile instanceof File) || csvFile.size === 0) {
+      return { error: "Vyber CSV z banky." };
+    }
+
+    if (csvFile.size > 1024 * 1024) {
+      return { error: "CSV je moc velké." };
+    }
+
+    const importSummary = await importBankCsv(member, {
+      fileName: csvFile.name,
+      csvText: await csvFile.text(),
+    });
+
+    revalidatePath("/admin");
+
+    if (importSummary.alreadyImported) {
+      return {
+        ok: "Tenhle soubor už tu je.",
+        importSummary,
+      };
+    }
+
+    return {
+      ok: `CSV načtené: ${importSummary.matched} spárováno.`,
+      importSummary,
+    };
   } catch (err) {
     return toState(err);
   }

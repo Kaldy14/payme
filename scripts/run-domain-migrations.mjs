@@ -11,12 +11,14 @@ const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..");
 const migrationsDir = path.join(repoRoot, "db", "migrations");
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL is required to run domain migrations.");
+const databaseUrl = process.env.DATABASE_URL ?? process.env.POSTGRES_URL;
+
+if (!databaseUrl) {
+  throw new Error("DATABASE_URL or POSTGRES_URL is required to run domain migrations.");
 }
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: databaseUrl,
 });
 
 async function ensureMigrationTable(client) {

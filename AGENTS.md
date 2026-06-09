@@ -25,6 +25,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Mutations go through server actions in `src/lib/actions.ts` (which wrap `src/lib/payme/commands.ts`), never direct client-side SQL. The only client-side mutation path is `POST /api/takes` and `POST /api/takes/:id/undo` from the NFC take screen (both already authorised server-side).
 - When touching settlement or report UI, re-check the real paid/open states in `/report/[yyyy-mm]`; summary cards must not imply an open debt once all lines are paid.
 - Keep QR payment blocks shareable as PNG images through the browser share sheet where supported, with a usable fallback for browsers that cannot share files.
+- Keep bank-payment QR payloads using `PAYME_BANK_VARIABLE_SYMBOL` as the shared export filter only; the concrete payment identity is the unique `payment_code` at the start of `payment_message`.
+- Bank CSV import must stay idempotent by file hash and transaction fingerprint, must keep raw bank row fields, and must not re-mark an already paid settlement line.
+- Current bank CSV matching targets materialized `app_settlement_line` payments. Live open-month balances still use paid-through markers unless a durable live payment-request model is added deliberately.
 - Keep both debtor-side "mám zaplaceno" and creditor-side confirmation flows server-backed; paid/open state must never be a client-only flag.
 - Live open-month settlements use paid-through markers, not negative take events. Keep month-close debt aggregation aligned so already-settled drinks are not charged again.
 - UI is mobile-first (iPhone Safari). Keep headings and cards sized for ~390px viewports and stack multi-column grids on base widths, opening up only at `sm:` and above.

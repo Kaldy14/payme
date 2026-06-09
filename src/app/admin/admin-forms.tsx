@@ -5,13 +5,18 @@ import { useActionState, useState } from "react";
 import {
   archiveDrinkAction,
   createInviteAction,
+  importBankCsvAction,
   mintTagAction,
   sendPendingInvitesAction,
   setupShelfAction,
   updateBatchDrinkAction,
   updateDrinkAction,
 } from "@/lib/actions";
+import type { BankImportActionState } from "@/lib/actions";
+import type { BankImportSummary } from "@/lib/payme/bank-import";
 import type {
+  BankImportOverview,
+  BankTransactionIssueRow,
   BatchRow,
   ShelfOverview,
   ShelfStockOverview,
@@ -512,6 +517,231 @@ function copyTextFallback(text: string) {
   input.select();
   document.execCommand("copy");
   input.remove();
+}
+
+// --- bank CSV import ---
+
+export function BankImportPanel({
+  imports,
+  issues,
+}: {
+  imports: BankImportOverview[];
+  issues: BankTransactionIssueRow[];
+}) {
+  const [state, action, pending] = useActionState<
+    BankImportActionState,
+    FormData
+  >(importBankCsvAction, {});
+
+  return (
+    <div className="flex flex-col gap-4">
+      <form action={action} className="paper-card p-4 sm:p-5 flex flex-col gap-3">
+        <div className="eyebrow">import plateb</div>
+        <div className="field-row">
+          <label className="label" htmlFor="bankCsvFile">
+            CSV z banky
+          </label>
+          <input
+            id="bankCsvFile"
+            name="csvFile"
+            type="file"
+            accept=".csv,text/csv"
+            required
+            className="input file:mr-3 file:border-0 file:bg-transparent file:text-ink file:font-semibold"
+          />
+        </div>
+        <button type="submit" disabled={pending} className="btn btn-ember">
+          {pending ? "načítám…" : "importovat CSV"}
+        </button>
+        <Status state={state} />
+        {state.importSummary && (
+          <BankImportResult summary={state.importSummary} />
+        )}
+      </form>
+
+      <BankImportHistory imports={imports} />
+      <BankTransactionIssues issues={issues} />
+    </div>
+  );
+}
+
+function BankImportResult({ summary }: { summary: BankImportSummary }) {
+  return (
+    <div className="paper-card-flat p-3">
+      <div className="eyebrow">výsledek</div>
+      <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
+        <BankImportStat label="spárováno" value={summary.matched} />
+        <BankImportStat label="duplicitní" value={summary.duplicates} />
+        <BankImportStat label="bez páru" value={summary.unmatched} />
+        <BankImportStat label="problém" value={summary.problem} />
+        <BankImportStat label="mimo" value={summary.ignored} />
+      </div>
+
+      {summary.rows.length > 0 && (
+        <div className="mt-3 divide-y divide-dashed divide-rule">
+          {summary.rows.slice(0, 8).map((row) => (
+            <div
+              key={`${row.rowNumber}-${row.paymentCode ?? "bez-kodu"}`}
+              className="grid gap-1 py-2 text-[0.82rem] sm:grid-cols-[auto_1fr_auto]"
+            >
+              <span className="tabular text-ink-faint">ř. {row.rowNumber}</span>
+              <span className="min-w-0 truncate">
+                {row.paymentCode ?? "bez kódu"} · {row.message ?? "bez zprávy"}
+              </span>
+              <span className="justify-self-start sm:justify-self-end">
+                <BankMatchStamp status={row.status} />
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BankImportStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="border border-rule bg-[rgba(139,126,105,0.08)] p-2">
+      <div className="eyebrow text-ink-faint">{label}</div>
+      <div className="tabular text-[1.2rem] leading-tight">{value}</div>
+    </div>
+  );
+}
+
+function BankImportHistory({ imports }: { imports: BankImportOverview[] }) {
+  if (imports.length === 0) {
+    return (
+      <div className="paper-card p-5 text-center">
+        <span className="stamp stamp-closed mx-auto">bez importu</span>
+        <p className="rubric mt-3 text-[0.96rem]">
+          Zatím tu není žádné CSV z banky.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="paper-card overflow-hidden">
+      <div className="border-b border-ink px-4 py-2">
+        <div className="eyebrow">poslední importy</div>
+      </div>
+      <div className="divide-y divide-dashed divide-rule">
+        {imports.map((item) => (
+          <div key={item.id} className="grid gap-2 px-4 py-3 sm:grid-cols-[1fr_auto]">
+            <div className="min-w-0">
+              <div className="truncate text-[0.92rem]">
+                {item.file_name ?? "CSV bez názvu"}
+              </div>
+              <div className="tabular mt-1 text-[0.72rem] text-ink-faint">
+                {formatDateTimeLocal(item.created_at)} · {item.uploaded_by_name}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-1.5 text-[0.72rem] sm:justify-end">
+              <span className="stamp stamp-paid">ok {item.matched}</span>
+              {item.duplicates > 0 && (
+                <span className="stamp stamp-closed">dup {item.duplicates}</span>
+              )}
+              {(item.unmatched > 0 || item.problem > 0) && (
+                <span className="stamp stamp-active">
+                  řešit {item.unmatched + item.problem}
+                </span>
+              )}
+              {item.ignored > 0 && (
+                <span className="stamp stamp-closed">mimo {item.ignored}</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BankTransactionIssues({ issues }: { issues: BankTransactionIssueRow[] }) {
+  if (issues.length === 0) {
+    return (
+      <div className="paper-card-flat p-3 text-center">
+        <span className="eyebrow text-moss-deep">žádné řádky k řešení</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="paper-card overflow-hidden">
+      <div className="border-b border-ink px-4 py-2">
+        <div className="eyebrow">k ruční kontrole</div>
+      </div>
+      <div className="divide-y divide-dashed divide-rule">
+        {issues.map((issue) => (
+          <div key={issue.id} className="grid gap-2 px-4 py-3">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <div className="tabular text-[0.95rem] text-ember">
+                {formatCzkLocal(issue.amount_minor)}
+              </div>
+              <BankMatchStamp status={issue.match_status} />
+            </div>
+            <div className="min-w-0 text-[0.84rem]">
+              <span className="tabular">{issue.payment_code ?? "bez kódu"}</span>
+              <span className="text-ink-faint"> · </span>
+              <span className="break-words">{issue.message ?? "bez zprávy"}</span>
+            </div>
+            <div className="flex flex-wrap gap-x-3 gap-y-1 text-[0.72rem] text-ink-faint">
+              <span>{problemLabel(issue.problem_code)}</span>
+              {issue.variable_symbol && (
+                <span className="tabular">VS {issue.variable_symbol}</span>
+              )}
+              {issue.counterparty_name && <span>{issue.counterparty_name}</span>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BankMatchStamp({ status }: { status: BankImportSummary["rows"][number]["status"] }) {
+  if (status === "matched") {
+    return <span className="stamp stamp-paid">spárováno</span>;
+  }
+  if (status === "duplicate") {
+    return <span className="stamp stamp-closed">duplicita</span>;
+  }
+  if (status === "ignored") {
+    return <span className="stamp stamp-closed">mimo</span>;
+  }
+  if (status === "unmatched") {
+    return <span className="stamp stamp-active">bez páru</span>;
+  }
+  return <span className="stamp stamp-active">problém</span>;
+}
+
+function problemLabel(code: string | null) {
+  switch (code) {
+    case "amount_mismatch":
+      return "částka nesedí";
+    case "already_paid":
+      return "už zaplaceno";
+    case "missing_amount":
+      return "chybí částka";
+    case "missing_payment_code":
+      return "chybí kód";
+    case "multiple_payment_codes":
+      return "víc kódů";
+    case "unknown_payment_code":
+      return "neznámý kód";
+    case "wrong_variable_symbol":
+      return "jiný VS";
+    case "unsupported_currency":
+      return "jiná měna";
+    case "non_positive_amount":
+      return "odchozí nebo nula";
+    case "settlement_variable_symbol_mismatch":
+      return "VS nesedí s platbou";
+    case "invalid_amount":
+      return "neplatná částka";
+    default:
+      return code ?? "bez detailu";
+  }
 }
 
 // --- batches / stockups ---
