@@ -622,6 +622,57 @@ function resolveUnitPriceMinor(input: CreateBatchInput) {
   return unitPriceMinor;
 }
 
+async function closeBatchAndActivateNext(
+  client: PoolClient,
+  input: { shelfId: string; batchId: string },
+) {
+  await client.query(
+    `
+      update app_batch
+      set status = 'closed',
+          closed_at = now(),
+          updated_at = now()
+      where id = $1
+        and shelf_id = $2
+        and status = 'active'
+    `,
+    [input.batchId, input.shelfId],
+  );
+
+  const nextQueuedBatch = firstRow(
+    await client.query<{ id: string }>(
+      `
+        select id
+        from app_batch
+        where shelf_id = $1
+          and status = 'queued'
+        order by created_at asc, id asc
+        limit 1
+        for update
+      `,
+      [input.shelfId],
+    ),
+  );
+
+  if (!nextQueuedBatch) {
+    return null;
+  }
+
+  await client.query(
+    `
+      update app_batch
+      set status = 'active',
+          activated_at = now(),
+          closed_at = null,
+          updated_at = now()
+      where id = $1
+    `,
+    [nextQueuedBatch.id],
+  );
+
+  return nextQueuedBatch.id;
+}
+
 export async function createBatch(actor: MemberRecord, input: CreateBatchInput) {
   const buyerMemberId =
     actor.role === "admin" && input.buyerMemberId ? input.buyerMemberId : actor.id;
@@ -663,21 +714,30 @@ export async function createBatch(actor: MemberRecord, input: CreateBatchInput) 
     }
 
     const activeBatch = firstRow(
-      await client.query<{ id: string }>(
+      await client.query<{ id: string; quantity_remaining: number }>(
         `
-          select id
+          select id, quantity_remaining
           from app_batch
           where shelf_id = $1
             and status = 'active'
           limit 1
+          for update
         `,
         [input.shelfId],
       ),
     );
 
+    const activeBatchId =
+      activeBatch?.quantity_remaining === 0
+        ? await closeBatchAndActivateNext(client, {
+            shelfId: input.shelfId,
+            batchId: activeBatch.id,
+          })
+        : activeBatch?.id;
+
     const batchId = createId("batch");
-    const status = activeBatch ? "queued" : "active";
-    const activatedAt = activeBatch ? null : new Date().toISOString();
+    const status = activeBatchId ? "queued" : "active";
+    const activatedAt = activeBatchId ? null : new Date().toISOString();
 
     await client.query(
       `
@@ -813,33 +873,10 @@ export async function updateBatchDrink(input: UpdateBatchDrinkInput) {
     );
 
     if (batch.status === "active") {
-      const nextQueuedBatch = firstRow(
-        await client.query<{ id: string }>(
-          `
-            select id
-            from app_batch
-            where shelf_id = $1
-              and status = 'queued'
-            order by created_at asc
-            limit 1
-            for update
-          `,
-          [batch.shelf_id],
-        ),
-      );
-
-      if (nextQueuedBatch) {
-        await client.query(
-          `
-            update app_batch
-            set status = 'active',
-                activated_at = now(),
-                updated_at = now()
-            where id = $1
-          `,
-          [nextQueuedBatch.id],
-        );
-      }
+      await closeBatchAndActivateNext(client, {
+        shelfId: batch.shelf_id,
+        batchId: batch.id,
+      });
     }
 
     return {
@@ -850,8 +887,43 @@ export async function updateBatchDrink(input: UpdateBatchDrinkInput) {
 
 export async function activateBatch(input: { shelfId: string; batchId: string }) {
   return withTransaction(async (client) => {
+    const shelf = firstRow(
+      await client.query<{ id: string }>(
+        `
+          select id
+          from app_shelf
+          where id = $1
+            and is_active = true
+          limit 1
+          for update
+        `,
+        [input.shelfId],
+      ),
+    );
+
+    if (!shelf) {
+      throw new PaymeError(404, "Pití nenalezeno.");
+    }
+
+    const activeBatch = firstRow(
+      await client.query<{ id: string; quantity_remaining: number }>(
+        `
+          select id, quantity_remaining
+          from app_batch
+          where shelf_id = $1
+            and status = 'active'
+          limit 1
+          for update
+        `,
+        [input.shelfId],
+      ),
+    );
+
     const target = firstRow(
-      await client.query<{ id: string; status: string }>(
+      await client.query<{
+        id: string;
+        status: "queued" | "active" | "closed";
+      }>(
         `
           select id, status
           from app_batch
@@ -872,24 +944,55 @@ export async function activateBatch(input: { shelfId: string; batchId: string })
       throw new PaymeError(400, "Uzavřenou dávku nelze znovu aktivovat.");
     }
 
-    await client.query(
-      `
-        update app_batch
-        set status = 'closed',
-            closed_at = now(),
-            updated_at = now()
-        where shelf_id = $1
-          and status = 'active'
-          and id <> $2
-      `,
-      [input.shelfId, input.batchId],
+    if (target.status === "active") {
+      return {
+        id: input.batchId,
+        status: "active" as const,
+      };
+    }
+
+    const firstQueuedBatch = firstRow(
+      await client.query<{ id: string }>(
+        `
+          select id
+          from app_batch
+          where shelf_id = $1
+            and status = 'queued'
+          order by created_at asc, id asc
+          limit 1
+          for update
+        `,
+        [input.shelfId],
+      ),
     );
+
+    if (firstQueuedBatch?.id !== input.batchId) {
+      throw new PaymeError(409, "Nejdřív aktivuj starší čekající dávku.");
+    }
+
+    if (activeBatch && activeBatch.quantity_remaining > 0) {
+      throw new PaymeError(409, "Aktivní dávka ještě není prázdná.");
+    }
+
+    if (activeBatch) {
+      await client.query(
+        `
+          update app_batch
+          set status = 'closed',
+              closed_at = now(),
+              updated_at = now()
+          where id = $1
+        `,
+        [activeBatch.id],
+      );
+    }
 
     await client.query(
       `
         update app_batch
         set status = 'active',
             activated_at = now(),
+            closed_at = null,
             updated_at = now()
         where id = $1
       `,
@@ -956,15 +1059,22 @@ export async function createTake(actor: MemberRecord, input: CreateTakeInput) {
       throw new PaymeError(409, "Tolik kousků skladem není.");
     }
 
-    await client.query(
-      `
-        update app_batch
-        set quantity_remaining = quantity_remaining - $2,
-            updated_at = now()
-        where id = $1
-      `,
-      [activeContext.batch_id, input.units],
+    const updatedBatch = firstRow(
+      await client.query<{ quantity_remaining: number }>(
+        `
+          update app_batch
+          set quantity_remaining = quantity_remaining - $2,
+              updated_at = now()
+          where id = $1
+          returning quantity_remaining
+        `,
+        [activeContext.batch_id, input.units],
+      ),
     );
+
+    if (!updatedBatch) {
+      throw new PaymeError(404, "Aktivní dávka zmizela.");
+    }
 
     const takeId = createId("take");
 
@@ -993,6 +1103,13 @@ export async function createTake(actor: MemberRecord, input: CreateTakeInput) {
       ],
     );
 
+    if (updatedBatch.quantity_remaining === 0) {
+      await closeBatchAndActivateNext(client, {
+        shelfId: activeContext.shelf_id,
+        batchId: activeContext.batch_id,
+      });
+    }
+
     return {
       id: takeId,
       duplicate: false,
@@ -1009,6 +1126,7 @@ export async function undoTake(actor: MemberRecord, takeEventId: string) {
         shelf_id: string;
         delta_units: number;
         recorded_at: Date;
+        batch_status: "queued" | "active" | "closed";
       }>(
         `
           select
@@ -1016,13 +1134,15 @@ export async function undoTake(actor: MemberRecord, takeEventId: string) {
             e.batch_id,
             e.shelf_id,
             e.delta_units,
-            e.recorded_at
+            e.recorded_at,
+            b.status as batch_status
           from app_take_event e
+          join app_batch b on b.id = e.batch_id
           where e.id = $1
             and e.actor_member_id = $2
             and e.delta_units > 0
           limit 1
-          for update
+          for update of e, b
         `,
         [takeEventId, actor.id],
       ),
@@ -1084,6 +1204,82 @@ export async function undoTake(actor: MemberRecord, takeEventId: string) {
       `,
       [target.batch_id, target.delta_units],
     );
+
+    if (target.batch_status === "closed") {
+      const activeBatch = firstRow(
+        await client.query<{ id: string }>(
+          `
+            select id
+            from app_batch
+            where shelf_id = $1
+              and status = 'active'
+            limit 1
+            for update
+          `,
+          [target.shelf_id],
+        ),
+      );
+
+      if (!activeBatch) {
+        await client.query(
+          `
+            update app_batch
+            set status = 'active',
+                closed_at = null,
+                updated_at = now()
+            where id = $1
+          `,
+          [target.batch_id],
+        );
+      } else {
+        const activeBatchHasTakes = firstRow(
+          await client.query<{ found: number }>(
+            `
+              select 1 as found
+              from app_take_event
+              where batch_id = $1
+              limit 1
+            `,
+            [activeBatch.id],
+          ),
+        );
+
+        if (!activeBatchHasTakes) {
+          await client.query(
+            `
+              update app_batch
+              set status = 'queued',
+                  activated_at = null,
+                  updated_at = now()
+              where id = $1
+            `,
+            [activeBatch.id],
+          );
+
+          await client.query(
+            `
+              update app_batch
+              set status = 'active',
+                  closed_at = null,
+                  updated_at = now()
+              where id = $1
+            `,
+            [target.batch_id],
+          );
+        } else {
+          await client.query(
+            `
+              update app_batch
+              set status = 'queued',
+                  closed_at = null,
+                  updated_at = now()
+              where id = $1
+            `,
+            [target.batch_id],
+          );
+        }
+      }
+    }
 
     const undoId = createId("take");
 

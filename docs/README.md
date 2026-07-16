@@ -28,6 +28,7 @@
 - drinks are modeled as a list; each drink has its own hidden stock slot and NFC tag
 - the existing internal shelf record stays hidden from users and acts only as a stock slot
 - one active batch per drink at a time
+- the last take closes its batch and activates the oldest waiting batch transactionally; admin activation is a guarded recovery path and cannot replace a nonempty batch
 - online-only NFC take flow
 - append-only take events
 - undo creates compensating events instead of deleting history
@@ -46,7 +47,7 @@
 - `/t/[tagToken]` – NFC take screen. Bare NFC URLs auto-record +1, show a live two-minute undo button for wrong-tag taps, and keep the manual +1/+2/+3 buttons behind `?mode=manual`.
 - `/shelves` – stock-style overview for each drink, who stocked it, who took from the active batch, open per-person drink debts with shareable Czech SPD QR images, debtor-side "mám zaplaceno", incoming payment confirmations, and batch forms ("zapiš nákup").
 - `/account` – payout account editor (prefix/účet/banka/IBAN) + passkey enrollment.
-- `/admin` – admin-only. Pití a štítky (drink list with NFC URLs + re-mint button per drink + add-drink form), Dávky (recent stockups with an admin-only move-to-drink correction), Bankovní CSV (manual bank CSV upload, import results, unresolved/problem transactions), and Lidé (members + invites).
+- `/admin` – admin-only. Pití a štítky (drink list with NFC URLs + re-mint button per drink + add-drink form), Dávky (recent stockups with guarded waiting-batch activation and an admin-only move-to-drink correction), Bankovní CSV (manual bank CSV upload, import results, unresolved/problem transactions), and Lidé (members + invites).
 - `/report/[yyyy-mm]` – monthly folio. Dlužíš / Dluží ti columns with shareable Czech SPD QR images for unpaid debts; QR includes shared VS and payment-code message for materialized settlement lines; debtor-side and creditor-side mark-paid; admin close button for open months.
 
 ## Operational notes

@@ -108,7 +108,9 @@ export default async function AdminPage() {
             </span>
           </div>
           <p className="rubric mt-2 text-[0.92rem]">
-            Když někdo zapíše nákup k jinému pití, přesuň tady celou dávku.
+            Další dávka se po posledním odběru aktivuje sama. Když se starší
+            záznam zasekne, aktivuj ho tady ručně; chybně zapsané pití můžeš
+            přesunout.
           </p>
           <div className="mt-3">
             <BatchTable batches={batches} shelves={shelves} />

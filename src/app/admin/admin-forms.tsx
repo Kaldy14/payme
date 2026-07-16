@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 
 import {
+  activateBatchAction,
   archiveDrinkAction,
   createInviteAction,
   importBankCsvAction,
@@ -754,6 +755,24 @@ export function BatchTable({
   shelves: ShelfOverview[];
 }) {
   const [editBatchId, setEditBatchId] = useState<string | null>(null);
+  const activeRemainingByShelf = new Map(
+    batches
+      .filter((batch) => batch.status === "active")
+      .map((batch) => [batch.shelf_id, batch.quantity_remaining]),
+  );
+  const firstQueuedBatchByShelf = new Map<string, BatchRow>();
+
+  for (const batch of batches) {
+    if (batch.status !== "queued") continue;
+    const current = firstQueuedBatchByShelf.get(batch.shelf_id);
+    if (
+      !current ||
+      batch.created_at < current.created_at ||
+      (batch.created_at === current.created_at && batch.id < current.id)
+    ) {
+      firstQueuedBatchByShelf.set(batch.shelf_id, batch);
+    }
+  }
 
   if (batches.length === 0) {
     return (
@@ -773,13 +792,18 @@ export function BatchTable({
         <span>platil/a</span>
         <span>stav</span>
         <span>zapsáno</span>
-        <span className="text-right">oprava</span>
+        <span className="text-right">akce</span>
       </div>
 
       <div className="divide-y divide-dashed divide-rule">
         {batches.map((batch) => {
           const isEditing = editBatchId === batch.id;
           const unit = batch.unit_label ?? "ks";
+          const activeRemaining = activeRemainingByShelf.get(batch.shelf_id);
+          const canActivate =
+            batch.status === "queued" &&
+            firstQueuedBatchByShelf.get(batch.shelf_id)?.id === batch.id &&
+            (activeRemaining === undefined || activeRemaining === 0);
 
           return (
             <div key={batch.id} className="px-4 py-4">
@@ -822,18 +846,30 @@ export function BatchTable({
                   </div>
                 </div>
 
-                <div className="justify-self-start sm:justify-self-end">
+                <div className="flex flex-wrap gap-2 justify-self-start sm:justify-self-end">
                   {batch.status === "closed" ? (
                     <span className="eyebrow text-ink-faint">zamčeno</span>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => setEditBatchId(isEditing ? null : batch.id)}
-                      className="btn btn-ghost btn-sm"
-                      aria-expanded={isEditing}
-                    >
-                      {isEditing ? "zavřít" : "upravit"}
-                    </button>
+                    <>
+                      {canActivate && (
+                        <ActivateBatchForm batch={batch} />
+                      )}
+                      {batch.status === "queued" && !canActivate && (
+                        <span className="eyebrow self-center text-ink-faint">
+                          {activeRemaining !== undefined && activeRemaining > 0
+                            ? "po dopití"
+                            : "v pořadí"}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setEditBatchId(isEditing ? null : batch.id)}
+                        className="btn btn-ghost btn-sm"
+                        aria-expanded={isEditing}
+                      >
+                        {isEditing ? "zavřít" : "upravit"}
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -848,6 +884,28 @@ export function BatchTable({
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+function ActivateBatchForm({ batch }: { batch: BatchRow }) {
+  const [state, action, pending] = useActionState<State, FormData>(
+    activateBatchAction,
+    {},
+  );
+
+  return (
+    <div>
+      <form action={action}>
+        <input type="hidden" name="batchId" value={batch.id} />
+        <input type="hidden" name="shelfId" value={batch.shelf_id} />
+        <button type="submit" disabled={pending} className="btn btn-sm btn-ember">
+          {pending ? "aktivuji…" : "aktivovat"}
+        </button>
+      </form>
+      <div className="mt-2">
+        <Status state={state} />
       </div>
     </div>
   );

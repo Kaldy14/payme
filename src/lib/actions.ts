@@ -9,6 +9,7 @@ import { sendInviteEmail } from "@/lib/emails";
 import { importBankCsv, type BankImportSummary } from "@/lib/payme/bank-import";
 import { findMemberByAuthUserId } from "@/lib/payme/authz";
 import {
+  activateBatch,
   archiveDrink,
   closeMonth,
   createBatch,
@@ -313,6 +314,29 @@ export async function updateBatchDrinkAction(
     revalidatePath("/shelves");
     revalidatePath("/");
     return { ok: "Dávka přesunuta." };
+  } catch (err) {
+    return toState(err);
+  }
+}
+
+export async function activateBatchAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  try {
+    const member = await requireMemberFromCookies();
+    requireAdminRole(member.role);
+    const batchId = String(formData.get("batchId") ?? "").trim();
+    const shelfId = String(formData.get("shelfId") ?? "").trim();
+    if (!batchId) return { error: "Chybí dávka." };
+    if (!shelfId) return { error: "Chybí pití." };
+
+    await activateBatch({ batchId, shelfId });
+
+    revalidatePath("/admin");
+    revalidatePath("/shelves");
+    revalidatePath("/");
+    return { ok: "Dávka je aktivní." };
   } catch (err) {
     return toState(err);
   }

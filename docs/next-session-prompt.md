@@ -26,6 +26,7 @@ Important product constraints:
 - multiple drinks/tags are supported
 - UI does not expose any location/place field
 - one active batch per drink
+- the last take closes its batch and activates the oldest waiting batch in the same transaction; admin activation is only a guarded recovery path for an empty/missing active batch
 - online-only at tap time
 - manual admin month close
 - append-only take events with compensating undo/correction behavior
@@ -63,7 +64,7 @@ Landed in the UI pass (iteration 2):
 - `/t/[tagToken]` — NFC take flow: bare tag URLs auto-record +1, show a live two-minute undo button for wrong-tag taps, and keep +1/+2/+3 manual buttons behind `?mode=manual`
 - `/shelves` — stock-style overview for each drink, active-batch takers, who stocked it, live per-person drink debts with shareable QR payment images, debtor-side paid marking, creditor confirmation, and "zapiš nákup" forms
 - `/account` — český účet editor + passkey enrollment
-- `/admin` — Pití a štítky (drink list with NFC URL + re-mint per drink + add-drink form), Dávky (recent stockups with admin move-to-drink correction), Bankovní CSV upload with idempotent import summary and problem row overview, and Lidé (members + invites)
+- `/admin` — Pití a štítky (drink list with NFC URL + re-mint per drink + add-drink form), Dávky (recent stockups with guarded waiting-batch activation and admin move-to-drink correction), Bankovní CSV upload with idempotent import summary and problem row overview, and Lidé (members + invites)
 - `/report/[yyyy-mm]` — Dlužíš / Dluží ti columns with shareable Czech SPD QR images, shared VS + payment code message for settlement lines, debtor-side and creditor-side mark-paid, admin close-month with confirm
 - server actions in `src/lib/actions.ts` wrap `src/lib/payme/commands.ts` for all non-NFC mutations, enforce same-origin mutation checks, and `setupShelfAction` adds a new drink + hidden stock slot + tag
 - UI data helpers in `src/lib/payme/ui-queries.ts`
